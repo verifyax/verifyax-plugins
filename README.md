@@ -1,6 +1,6 @@
 # VerifyAX Claude Plugins
 
-A [Claude Code](https://code.claude.com/) plugin marketplace for [VerifyAX](https://verifyax.com) — the agent evaluation and verification platform from Conscium.
+A [Claude Code](https://code.claude.com/) plugin marketplace for [VerifyAX](https://verifyax.com) — the agent evaluation and verification platform from [Conscium](https://conscium.com).
 
 ## What's in here
 
