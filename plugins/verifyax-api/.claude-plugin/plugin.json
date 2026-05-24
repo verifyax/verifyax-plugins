@@ -1,0 +1,11 @@
+{
+  "name": "verifyax-api",
+  "description": "Drive the VerifyAX agent evaluation platform programmatically — register agents, generate scenarios, run simulations, fetch evaluations.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Conscium"
+  },
+  "homepage": "https://verifyax.com",
+  "license": "Apache-2.0",
+  "keywords": ["verifyax", "agent-evaluation", "ai-eval", "conscium", "simulation"]
+}

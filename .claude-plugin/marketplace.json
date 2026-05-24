@@ -1,0 +1,19 @@
+{
+  "name": "verifyax-plugins",
+  "description": "Official Conscium plugins for working with the VerifyAX agent evaluation platform.",
+  "owner": {
+    "name": "Conscium",
+    "email": "hello@conscium.com"
+  },
+  "plugins": [
+    {
+      "name": "verifyax-api",
+      "source": "./plugins/verifyax-api",
+      "description": "Drive the VerifyAX agent evaluation platform programmatically — register agents, generate scenarios, run simulations, fetch evaluations.",
+      "version": "0.1.0",
+      "category": "ai-tooling",
+      "tags": ["verifyax", "agent-evaluation", "conscium"],
+      "homepage": "https://verifyax.com"
+    }
+  ]
+}
