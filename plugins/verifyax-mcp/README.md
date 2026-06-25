@@ -11,7 +11,7 @@ This plugin wraps the published [`@verifyax/mcp-server`](https://www.npmjs.com/p
 ## Install
 
 ```
-/plugin marketplace add verifyax/claude-plugins
+/plugin marketplace add verifyax/verifyax-plugins
 /plugin install verifyax-mcp@verifyax-plugins
 ```
 

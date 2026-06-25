@@ -14,7 +14,7 @@ A [Claude Code](https://code.claude.com/) plugin marketplace for [VerifyAX](http
 Add the marketplace, then install a plugin:
 
 ```
-/plugin marketplace add verifyax/claude-plugins
+/plugin marketplace add verifyax/verifyax-plugins
 /plugin install verifyax-api@verifyax-plugins    # the skill
 /plugin install verifyax-mcp@verifyax-plugins    # the MCP server
 ```
