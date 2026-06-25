@@ -1,0 +1,29 @@
+{
+  "name": "verifyax-mcp",
+  "description": "Conversational access to VerifyAX through an MCP server — register agents, generate scenarios, evaluate, and read results by describing what you want.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Conscium"
+  },
+  "homepage": "https://verifyax.com",
+  "license": "Apache-2.0",
+  "keywords": ["verifyax", "mcp", "agent-evaluation", "ai-eval", "conscium"],
+  "mcpServers": {
+    "verifyax": {
+      "command": "npx",
+      "args": ["-y", "@verifyax/mcp-server"],
+      "env": {
+        "VERIFYAX_API_KEY": "${user_config.api_key}"
+      }
+    }
+  },
+  "userConfig": {
+    "api_key": {
+      "type": "string",
+      "title": "VerifyAX API Key",
+      "description": "Your VerifyAX API key from Settings → API Keys at https://console.verifyax.com",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}
