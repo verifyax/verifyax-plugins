@@ -7,7 +7,7 @@ A [Claude Code](https://code.claude.com/) plugin marketplace for [VerifyAX](http
 | Plugin | Description |
 |---|---|
 | `verifyax-api` | Drive the VerifyAX REST API programmatically (a skill) — register agents, generate test scenarios, trigger simulations, fetch evaluations. Best for writing code. |
-| `verifyax-mcp` | Native MCP tools for VerifyAX — the same workflow as conversational tools Claude executes directly. Best for conversational use. Wraps [`@verifyax/mcp-server`](https://www.npmjs.com/package/@verifyax/mcp-server). |
+| `verifyax-mcp` | The same actions as native MCP tools Claude calls directly — register agents, generate scenarios, evaluate, inspect results. Best for conversational, no-code use. Installs the [`@verifyax/mcp-server`](https://www.npmjs.com/package/@verifyax/mcp-server) npm package. |
 
 ## Install
 
