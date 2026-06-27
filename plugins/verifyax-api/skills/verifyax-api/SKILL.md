@@ -1,6 +1,6 @@
 ---
 name: verifyax-api
-description: Drive the VerifyAX agent evaluation platform programmatically through its REST API — register AI agents (A2A or REST), generate test scenarios with skill tags, trigger simulation runs against them, poll async jobs, and fetch evaluation results. Use this skill whenever the user mentions VerifyAX, the verifyax.com console, or wants to evaluate, benchmark, simulate, or test an AI agent against scenarios via API — even if they don't explicitly say "VerifyAX API". Also use when the user references endpoints under console.verifyax.com, asks how to script agent evals, wants to chain register-agent → run-simulation → fetch-results, or needs help interpreting VerifyAX job statuses, scenario tags, or credit estimates. This skill is best when writing or running code against the API; for no-code conversational workflows, the verifyax-mcp plugin (the @verifyax/mcp-server MCP server) exposes the same capabilities as native tools Claude can call directly.
+description: Drive the VerifyAX agent evaluation platform programmatically through its REST API — register AI agents (A2A or REST), generate test scenarios with skill tags, trigger simulation runs against them, poll async jobs, and fetch evaluation results. Use this skill whenever the user mentions VerifyAX, the verifyax.com console, or wants to evaluate, benchmark, simulate, or test an AI agent against scenarios via API — even if they don't explicitly say "VerifyAX API". Also use when the user references endpoints under console.verifyax.com, asks how to script agent evals, wants to chain register-agent → run-simulation → fetch-results, or needs help interpreting VerifyAX job statuses, scenario tags, or credit estimates.
 ---
 
 # VerifyAX API Skill
@@ -33,7 +33,7 @@ Pipeline: Register Agent → Create Scenario → Trigger Simulation → Evaluate
 
 - All resource IDs are in the `uuid` field of response objects. Path params use a prefixed name (e.g. `{scenario_uuid}`, `{agent_uuid}`) — supply the `uuid` value from the corresponding response.
 - Timestamps are ISO 8601 UTC with trailing `Z` (e.g. `2026-04-22T09:05:43Z`). Resources with lifecycle carry `created_at`/`updated_at`.
-- Lifecycle status enums are **UPPERCASE** (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`); generation inputs like `scenario_type` are lowercase snake_case. `agent_type` values are `A2A`, `API`, `EXTENSION` (only `A2A`/`API` are used when registering).
+- Lifecycle status enums are **UPPERCASE** (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`); generation inputs like `scenario_type` are lowercase snake_case. `agent_type` values include `A2A`, `API`, `DIRECTLINE`, `EXTENSION`, `MCP`.
 - **Treat enum sets as open and tolerate unknown response fields** — new enum values and new top-level keys ship without a version bump. Handle an unrecognised status as "not yet terminal" rather than asserting the set is closed.
 - List endpoints return plain JSON arrays (no envelope). Paginate with `limit` (default 100, max 1000; `1 ≤ limit ≤ 1000`) and `offset`. Ordering is stable within one call but not across calls.
 - Filters combine with AND. Omit a param to leave that dimension unfiltered. Unknown keys in request bodies are ignored, not rejected.
@@ -52,12 +52,16 @@ POST /v1/agents
   "name": "string (required)",        // if taken, server suffixes it: "My Agent (1)"
   "description": "string",
   "agent_url": "https://...",
-  "agent_type": "A2A | API",          // default A2A
+  "agent_type": "A2A | API | DIRECTLINE",  // default A2A
   "agent_parameters": {
-    "auth_method": "no-auth | bearer | cs | http-basic",   // default no-auth
+    "auth_method": "no-auth | bearer | cs | http-basic",   // default no-auth (A2A/API)
     "token": "string (min 10 chars, used by bearer/cs)",
     "basic_username": "string",
     "basic_password": "string",       // platform sends Authorization: Basic base64(user:pass)
+    "directline": {                   // DIRECTLINE only — Copilot Studio
+      "secret": "<direct-line-secret>",
+      "region": "global | europe | india | unitedstates | asia | australia | northamerica"
+    },
     "include_full_context": "always | never | first_only", // default never
     "include_message_history": false,
     "max_requests_per_minute": 4,
@@ -71,6 +75,8 @@ POST /v1/agents
 ```
 
 A2A agents are reached over JSON-RPC over HTTPS (gRPC and HTTP+JSON A2A transports are not supported); streaming SSE from the agent is consumed internally and surfaced as a single completed turn.
+
+**Copilot Studio (`DIRECTLINE`):** set `agent_url` from region — `global` → `https://directline.botframework.com`, `europe` → `https://europe.directline.botframework.com`, etc. Store the Direct Line secret in `agent_parameters.directline.secret`, not at the top level.
 
 ### List agents
 ```
@@ -94,6 +100,10 @@ POST /v1/agents/tests/api-agent-test      // probe REST endpoint
 
 POST /v1/agents/tests/api-agent-test-curl // parse + execute a cURL command
 { "curl_command": "curl -X GET '...'", "timeout": 10 }
+
+POST /v1/agents/tests/api-agent-test-directline  // Copilot Studio probe (flat body)
+{ "secret": "<direct-line-secret>", "region": "global", "message": "Hello", "timeout": 60 }
+// Note: registration nests secret/region under agent_parameters.directline on POST /v1/agents
 ```
 
 ## Scenarios
@@ -105,7 +115,7 @@ POST /v1/scenarios/generate
   "name": "string (required, workspace-unique)",
   "scenario_type": "info_exchange | interview",   // info_exchange is the default
   "context_prompt": "string",
-  "tags": ["tag1", "tag2"],             // tag `name` from GET /web/api/v1/tags; max 5 info_exchange / 2 interview
+  "tags": ["tag1", "tag2"],             // tag `name` from GET /api/v1/tags; max 5 info_exchange / 2 interview
   "timeout_minutes": 30,                // 1-240
   "num_scenarios": 1,                   // 1-50; >1 enables batch mode (requires batch fields)
   // batch-only fields:
@@ -300,31 +310,26 @@ POST /v1/auth/one-time-login-token
 
 ## Skill Tags
 
-Skill tags are **not** on the public `/api/v1` surface. Discover them via the gateway **web** route (same host, different base path):
+Discover tags on the public API with your workspace API key:
 
 ```
-GET https://console.verifyax.com/web/api/v1/tags
-// Global catalogue — no auth required.
-
-GET https://console.verifyax.com/web/api/v1/tags?organizationId=<org_uuid>
-// Global + org-specific overlay — requires browser session auth (not API key).
+GET https://console.verifyax.com/api/v1/tags
+Authorization: Bearer <api-key>
 ```
 
-**Response shape** (wrapper, not a bare array):
+Returns a **bare JSON array** — global catalogue merged with your organization's custom overlay. Org-specific tags have `custom: true`; global tags have `custom: false`.
 
 ```json
-{
-  "success": true,
-  "data": [
-    {
-      "name": "empathy",
-      "category": "social",
-      "description": "...",
-      "benchmark_family": null,
-      "allowed_scenario_types": ["info_exchange", "interview"]
-    }
-  ]
-}
+[
+  {
+    "name": "empathy",
+    "category": "social",
+    "description": "...",
+    "benchmark_family": null,
+    "allowed_scenario_types": ["info_exchange", "interview"],
+    "custom": false
+  }
+]
 ```
 
 **Each tag object:**
@@ -336,12 +341,12 @@ GET https://console.verifyax.com/web/api/v1/tags?organizationId=<org_uuid>
 | `description` | What capability the tag measures |
 | `benchmark_family` | Benchmark family id — a string, an **array** of strings (e.g. `["agentharm", "air_bench"]`), or `null` for normal tags |
 | `allowed_scenario_types` | Which `scenario_type` values may use this tag: `info_exchange`, `interview`, both, or `[]` (not selectable) |
-| `client_specific` | `true` when the tag comes from an org overlay (only with `organizationId` query) |
+| `custom` | `true` when the tag comes from your org overlay |
 
 **Tag selection checklist (do this before `POST /v1/scenarios/generate`):**
 
-1. `GET /web/api/v1/tags` → read `data`.
-2. Filter tags where `allowed_scenario_types` includes your chosen `scenario_type`. When the field is omitted, treat as both types allowed (UI backward compat).
+1. `GET /api/v1/tags` → read the array.
+2. Filter tags where `allowed_scenario_types` includes your chosen `scenario_type`. When the field is omitted, treat as both types allowed.
 3. Skip tags with `allowed_scenario_types: []`.
 4. Pass each tag's **`name`** (exact string) in `tags` or `tag_pool`.
 
@@ -357,7 +362,7 @@ GET https://console.verifyax.com/web/api/v1/tags?organizationId=<org_uuid>
 
 1. **Register agent** — `POST /v1/agents` → store `agent_uuid`
 2. **Verify connectivity** — `POST /v1/agents/tests/agent-card` before committing
-3. **Discover tags** — `GET /web/api/v1/tags` → filter by `allowed_scenario_types` for your `scenario_type`
+3. **Discover tags** — `GET /api/v1/tags` → filter by `allowed_scenario_types` for your `scenario_type`
 4. **Generate scenario** — `POST /v1/scenarios/generate` → store `uuid` (use as `{scenario_uuid}` in paths) + `job_uuid`
 5. **Wait for scenario** — poll `GET /v1/jobs/{job_uuid}` until `COMPLETED` (if `FAILED`, fix tags and retry)
 6. **Estimate cost** — `POST /v1/engine/workspace-credit-preview`
@@ -386,7 +391,7 @@ GET https://console.verifyax.com/web/api/v1/tags?organizationId=<org_uuid>
 
 | `error_details` pattern | Likely cause | Fix |
 |-------------------------|--------------|-----|
-| `tags do not exist in the skill tags registry` | Unknown `name` | Re-fetch `GET /web/api/v1/tags`; use exact `name` values |
+| `tags do not exist in the skill tags registry` | Unknown `name` | Re-fetch `GET /api/v1/tags`; use exact `name` values |
 | `does not support … benchmark tags` | Benchmark tag with wrong `scenario_type` | Use `info_exchange`, or pick non-benchmark tags |
 | `QnA tags are only supported for 'interview'` | QnA tag with `info_exchange` | Switch to `interview` or remove QnA tag |
 | mentions `--list-tags` | Worker leaked CLI wording | Ignore CLI; use tag catalogue endpoint |
