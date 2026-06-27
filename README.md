@@ -3,6 +3,28 @@
 A [Claude Code](https://code.claude.com/) plugin marketplace for [VerifyAX](https://verifyax.com) —
 the agent evaluation and verification platform from [Conscium](https://conscium.com).
 
+## What is VerifyAX?
+
+VerifyAX is a platform for **testing and evaluating AI agents**. You register an agent (an A2A or
+REST endpoint), generate **scenarios** that exercise specific skills, run your agent through them as
+**simulations**, and get back scored **evaluations** plus full transcripts — so you can benchmark,
+regression-test, and verify agent behaviour instead of eyeballing it.
+
+These plugins bring that whole loop into Claude Code. Instead of clicking through the
+[console](https://console.verifyax.com) or hand-writing API calls, you describe what you want
+("register this agent and run an empathy eval") and Claude drives VerifyAX for you.
+
+## Who this is for
+
+- **You already have (or are evaluating) a VerifyAX account** and want to drive it from Claude Code
+  rather than the web UI.
+- **You're building or testing an AI agent** and want repeatable, scored evals wired into your dev
+  workflow.
+
+If you've never heard of VerifyAX, start at [verifyax.com](https://verifyax.com) to see what the
+platform does first — these plugins are a client for it, not a standalone tool. You'll need an
+account and an API key (below) before they do anything useful.
+
 ## Plugins
 
 | Plugin         | Description                                                                                                                                                                                  |
@@ -12,6 +34,14 @@ the agent evaluation and verification platform from [Conscium](https://conscium.
 
 Not sure which? Pick **`verifyax-mcp`** for conversational workflows (Claude calls the tools for
 you); **`verifyax-api`** when you want Claude to write scripts against the API.
+
+## Before you start
+
+1. **Create a VerifyAX account** (or sign in) at the [VerifyAX console](https://console.verifyax.com).
+2. **Get an API key** — **Settings → API Keys** in the console. Keys look like `sk-ver-api-...` and
+   the full secret is shown **only once** at creation, so copy it then.
+3. **Make sure your workspace has credits.** Generating scenarios and running simulations consume
+   credits; operations fail with a payment error if the balance is empty.
 
 ## Install
 
@@ -23,8 +53,7 @@ Add the marketplace, then install whichever plugin you want:
 /plugin install verifyax-mcp@verifyax-plugins    # the MCP server
 ```
 
-You need a VerifyAX API key — get one from **Settings → API Keys** in the
-[VerifyAX console](https://console.verifyax.com). How you provide it depends on the plugin:
+How you provide the API key depends on the plugin:
 
 - **`verifyax-mcp`** prompts for the key when you enable the plugin and stores it securely.
 - **`verifyax-api`** reads it from the `VERIFYAX_API_KEY` environment variable:
@@ -35,13 +64,48 @@ You need a VerifyAX API key — get one from **Settings → API Keys** in the
 
   The skill reads the key from this variable; it will never ask you to paste it into a chat.
 
-## Use
+## Quickstart: zero to your first evaluation
 
-Once installed, just describe what you want and Claude reaches for the right tool:
+Once a plugin is installed and your key is set, just describe the goal in plain language — Claude
+chains the steps (register → generate scenario → simulate → evaluate → fetch results) for you. A
+first run, end to end:
+
+> _"Using VerifyAX: register my A2A agent at `https://my-agent.example.com`, generate one
+> `info_exchange` scenario tagged `empathy`, run my agent against it, and show me the evaluation
+> scores when it's done."_
+
+Claude will register the agent, create the scenario (async — it polls until ready), trigger the
+simulation, wait for it to complete, and return the scores. From there you can iterate:
 
 - _"Register this A2A agent on VerifyAX and run a quick interview-style eval against it."_
 - _"List my failed simulations from the last week and show the error_details for each."_
 - _"Generate a batch of 5 info_exchange scenarios with the empathy and active_listening tags."_
+
+> 💡 Runs cost credits — ask Claude to _"estimate the credits before running"_ and it'll preview the
+> cost first.
+
+## Key concepts
+
+A quick glossary so the examples above make sense:
+
+| Term | What it is |
+| ---- | ---------- |
+| **Agent** | The AI endpoint you're testing — an **A2A** or **REST** service you register with VerifyAX. |
+| **Scenario** | A test environment your agent is run through. Two types: **`info_exchange`** (multi-agent, the default) and **`interview`** (1-to-1). |
+| **Skill tag** | A label (e.g. `empathy`, `active_listening`) that targets what a scenario measures. |
+| **Simulation run** | One execution of an agent against a scenario. Produces a transcript. |
+| **Evaluation** | The scoring of a completed run against the scenario's ground truth. |
+| **Job** | An async handle for long-running work (scenario creation, simulation, evaluation): `PENDING → PROCESSING → COMPLETED / FAILED / CANCELLED`. |
+| **Credits** | Workspace spend consumed by generation, simulation, and evaluation. |
+
+**The pipeline:** Register agent → Create scenario → Trigger simulation → Evaluate → Fetch results.
+
+## Learn more
+
+- **Platform & sign-up:** [verifyax.com](https://verifyax.com) · [console.verifyax.com](https://console.verifyax.com)
+- **Company:** [Conscium](https://conscium.com)
+- **Full API reference:** bundled with the `verifyax-api` plugin (its `SKILL.md` documents every
+  endpoint, status code, and the end-to-end workflow).
 
 ## Update
 
