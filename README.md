@@ -147,5 +147,7 @@ Apache-2.0. See [`LICENSE`](LICENSE).
 
 ## Contributing
 
-Found a bug, an outdated endpoint, or want to add a new plugin (workbench helpers, scenario
-authoring, etc.)? Open an issue or a PR.
+Found a bug, an outdated endpoint, or have an idea for a new plugin (workbench helpers, scenario
+authoring, etc.)? [Open an issue](https://github.com/verifyax/verifyax-plugins/issues) and we'll take
+it from there. The maintainers handle changes internally, so external pull requests aren't accepted —
+issues are the best way to reach us.
