@@ -123,8 +123,10 @@ wrapper.
 
 ## Versioning
 
-Each plugin pins an explicit `version` in its `plugin.json`. Users only receive updates when we
-bump the version, so we bump on every release. The current version is **0.1.0**.
+Each plugin pins an explicit `version` in its `plugin.json` and is versioned independently. Users
+only receive updates when we bump the version, so we bump on every release. Current versions:
+**`verifyax-api` 0.2.0**, **`verifyax-mcp` 0.1.0**. See [`CHANGELOG.md`](CHANGELOG.md) for release
+notes.
 
 ## License
 
