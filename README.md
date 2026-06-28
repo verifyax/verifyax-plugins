@@ -121,6 +121,19 @@ If you use [Claude.ai](https://claude.ai) (not Claude Code), grab the `.skill` b
 Releases page and upload it via **Settings → Capabilities → Skills**. Same SKILL.md, different
 wrapper.
 
+### Building the `.skill` bundle (maintainers)
+
+The bundle attached to each release is built from the plugin's skill directory with:
+
+```bash
+scripts/build-skill.sh            # → dist/verifyax-api.skill
+scripts/build-skill.sh <plugin> <skill>   # for any other plugin/skill
+```
+
+A `.skill` file is just a zip whose top level is a single `<skill>/` folder containing `SKILL.md`
+(and any resource files). After a version bump, rebuild and attach the new `dist/<skill>.skill` to
+the GitHub Release. Build output lives in `dist/` (gitignored).
+
 ## Versioning
 
 Each plugin pins an explicit `version` in its `plugin.json` and is versioned independently. Users
