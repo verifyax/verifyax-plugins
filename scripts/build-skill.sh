@@ -52,4 +52,4 @@ rm -f "$OUT"
 
 echo "Built $OUT${VERSION:+ (v$VERSION)}"
 echo "Contents:"
-unzip -l "$OUT" | sed 's/^/  /'
+zip -sf "$OUT" | sed 's/^/  /'
