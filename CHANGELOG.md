@@ -43,6 +43,20 @@ and backward-compatible — no breaking changes to existing workflows.
 
 ## verifyax-mcp
 
+### [0.2.1] — 2026-07-01
+
+#### Changed
+- **Pin the MCP server version.** The plugin now launches `@verifyax/mcp-server@0.2.1` instead of
+  the floating `@verifyax/mcp-server` (which resolved to `latest`). This makes installs
+  reproducible and honors the marketplace's versioning promise — users only get a new server build
+  when the plugin version is bumped. **Plugin `0.2.x` ↔ server `0.2.1`.**
+
+### [0.2.0] — 2026-06-28
+
+#### Changed
+- Tracked the `@verifyax/mcp-server` 0.2.0 release (Streamable HTTP transport + the broad API sync).
+  The plugin still launched the server unpinned; pinning landed in 0.2.1.
+
 ### [0.1.0] — initial release
 
 - First release of the `verifyax-mcp` plugin: conversational access to VerifyAX through the
