@@ -1,7 +1,8 @@
+# OS / editor
 .DS_Store
-__pycache__/
-*.pyc
 .idea/
 .vscode/
 *.swp
+
+# Build output
 dist/
