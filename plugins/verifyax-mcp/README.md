@@ -1,7 +1,7 @@
 # verifyax-mcp
 
 A Claude Code plugin that installs the [VerifyAX](https://verifyax.com) MCP server, giving Claude
-12 conversational tools for the agent-evaluation platform — register agents, generate scenarios,
+conversational tools for the agent-evaluation platform — register agents, generate scenarios,
 run simulations, evaluate, and read results by just describing what you want.
 
 This plugin wraps the published [`@verifyax/mcp-server`](https://www.npmjs.com/package/@verifyax/mcp-server)

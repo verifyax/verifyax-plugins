@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate manifests and version consistency
+        run: node scripts/check-manifests.mjs
+
+      - name: Shellcheck build scripts
+        # severity=error for the initial gate (catches real bugs without blocking
+        # on style warnings); tighten to the default once the scripts are clean.
+        run: shellcheck --severity=error scripts/*.sh
+
+      - name: Build and verify the .skill bundle
+        run: |
+          bash scripts/build-skill.sh verifyax-api
+          test -f dist/verifyax-api.skill || { echo "bundle was not produced"; exit 1; }
+          # Exactly one top-level entry, named after the skill, containing SKILL.md.
+          top=$(unzip -Z1 dist/verifyax-api.skill | cut -d/ -f1 | sort -u)
+          [ "$top" = "verifyax-api" ] || { echo "unexpected top-level entry: [$top]"; exit 1; }
+          unzip -Z1 dist/verifyax-api.skill | grep -qx "verifyax-api/SKILL.md" \
+            || { echo "verifyax-api/SKILL.md missing from the bundle"; exit 1; }
+          echo "bundle OK"

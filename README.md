@@ -150,4 +150,5 @@ Apache-2.0. See [`LICENSE`](LICENSE).
 Found a bug, an outdated endpoint, or have an idea for a new plugin (workbench helpers, scenario
 authoring, etc.)? [Open an issue](https://github.com/verifyax/verifyax-plugins/issues) and we'll take
 it from there. The maintainers handle changes internally, so external pull requests aren't accepted —
-issues are the best way to reach us.
+issues are the best way to reach us. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the model, and
+[`SECURITY.md`](SECURITY.md) to report a vulnerability privately.
