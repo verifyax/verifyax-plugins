@@ -104,8 +104,9 @@ A quick glossary so the examples above make sense:
 
 - **Platform & sign-up:** [verifyax.com](https://verifyax.com) · [console.verifyax.com](https://console.verifyax.com)
 - **Company:** [Conscium](https://conscium.com)
-- **Full API reference:** bundled with the `verifyax-api` plugin (its `SKILL.md` documents every
-  endpoint, status code, and the end-to-end workflow).
+- **Full API reference:** the canonical OpenAPI contract at
+  [`console.verifyax.com/openapi.yaml`](https://console.verifyax.com/openapi.yaml) (the `verifyax-api`
+  skill carries the workflow + behavioural rules and fetches the contract for exact endpoint shapes).
 
 ## Update
 
@@ -138,7 +139,7 @@ the GitHub Release. Build output lives in `dist/` (gitignored).
 
 Each plugin pins an explicit `version` in its `plugin.json` and is versioned independently. Users
 only receive updates when we bump the version, so we bump on every release. Current versions:
-**`verifyax-api` 0.2.0**, **`verifyax-mcp` 0.2.1**. See [`CHANGELOG.md`](CHANGELOG.md) for release
+**`verifyax-api` 0.3.0**, **`verifyax-mcp` 0.2.1**. See [`CHANGELOG.md`](CHANGELOG.md) for release
 notes.
 
 ## License

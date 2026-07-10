@@ -7,6 +7,22 @@ Versions are tracked per plugin.
 
 ## verifyax-api
 
+### [0.3.0] — 2026-07-03
+
+Rework the skill around the **canonical OpenAPI contract as the single source of truth**. The API
+surface is no longer transcribed into the skill (where it drifted); it is fetched from
+`console.verifyax.com/openapi.yaml` on demand.
+
+#### Changed
+
+- SKILL.md shrinks ~476 → ~130 lines: it keeps the **workflow and behavioural rules a spec can't
+  express** (async `201`-then-`FAILED`, async tag-compatibility, open enums, error-status-is-truth,
+  rate limits, base path) and instructs the agent to **download + grep `openapi.yaml`** for exact
+  endpoint shapes. The canonical human-readable companion is served at `console.verifyax.com/SKILL.md`.
+- Add explicit **secret-handling** guidance inside the skill (read the key from `VERIFYAX_API_KEY`,
+  never inline/log/commit it) and a **robust polling example** with a deadline + backoff.
+- Tighten the trigger `description`; add a note that the one-time-login token is a live credential.
+
 ### [0.2.0] — 2026-06-28
 
 Expanded the API reference to match the current VerifyAX gateway surface. Additive
