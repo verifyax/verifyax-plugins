@@ -23,8 +23,36 @@ import json
 import logging
 import os
 import shutil
+import signal
+import subprocess
 
 logger = logging.getLogger(__name__)
+
+
+# Built-in tools removed in tools-off mode so the agent genuinely can't act on or
+# read the host (pure conversation). NOTE: --allowedTools does NOT disable tools —
+# only --disallowedTools removes availability (verified). Kept comprehensive.
+_OFF_DISALLOWED_TOOLS = [
+    "Task", "Bash", "BashOutput", "KillShell", "KillBash",
+    "Glob", "Grep", "Read", "Edit", "Write", "NotebookEdit",
+    "WebFetch", "WebSearch", "TodoWrite", "SlashCommand", "ExitPlanMode",
+]
+
+
+def _kill_tree(proc) -> None:
+    """Kill the subprocess AND its children — the `claude` CLI spawns its own
+    process tree, which a bare ``proc.kill()`` would orphan."""
+    try:
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                capture_output=True,
+            )
+        else:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        with contextlib.suppress(Exception):
+            proc.kill()
 
 
 class ClaudeAgentError(RuntimeError):
@@ -87,7 +115,10 @@ class ClaudeCodeBackend:
         if session_id:
             cmd += ["--resume", session_id]
         if self._tools == "off":
-            cmd += ["--allowedTools", ""]  # grant nothing -> pure conversation
+            # Remove tool AVAILABILITY (not just auto-approval). --allowedTools does
+            # NOT stop execution; --disallowedTools does — so this is a genuine
+            # pure-conversation, no-host-access mode.
+            cmd += ["--disallowedTools", *_OFF_DISALLOWED_TOOLS]
         else:
             cmd += ["--dangerously-skip-permissions"]  # autonomous — SANDBOX ONLY
         cmd += self._extra_args
@@ -103,12 +134,20 @@ class ClaudeCodeBackend:
         ignored (the agent's identity is the local CLI auth)."""
         async with self._lock(context_id):
             cmd = self._build_cmd(text, self._sessions.get(context_id))
+            # New process group/session so a timeout can kill claude's whole child
+            # tree, not just the direct process.
+            create_kwargs = (
+                {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+                if os.name == "nt"
+                else {"start_new_session": True}
+            )
             try:
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,
                     cwd=self._project_dir,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
+                    **create_kwargs,
                 )
             except FileNotFoundError as exc:
                 raise ClaudeAgentError(
@@ -121,10 +160,9 @@ class ClaudeCodeBackend:
                     proc.communicate(), self._turn_timeout
                 )
             except asyncio.TimeoutError:
-                proc.kill()
-                # Reap the killed child so it doesn't linger as a zombie / leak a
-                # PID — matters under repeated timeouts and the sandbox's
-                # --pids-limit.
+                # Kill claude's whole process tree (it spawns children), then reap
+                # so nothing lingers as a zombie / leaks PIDs under --pids-limit.
+                _kill_tree(proc)
                 with contextlib.suppress(Exception):
                     await asyncio.wait_for(proc.wait(), 10)
                 raise ClaudeAgentError(

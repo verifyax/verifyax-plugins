@@ -1,7 +1,7 @@
 {
   "name": "verifyax-claude-agent",
   "description": "Expose your own Claude Code agent over A2A so VerifyAX can evaluate it. Bundles the adapter (wraps the local `claude` CLI), the guided connect-to-verifyax skill, and a tools-on sandbox; reuses the verifyax-api skill for all VerifyAX API calls.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Conscium"
   },

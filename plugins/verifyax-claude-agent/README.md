@@ -25,8 +25,10 @@ session (`--resume`), giving VerifyAX a normal multi-turn agent to score.
 | `.claude-plugin/plugin.json` | Claude Code plugin manifest |
 
 ## Two modes
-- **tools-off** (default) — `--allowedTools ""`: pure conversation, **zero blast
-  radius, no sandbox**. Faithful to how your agent reasons and what it knows.
+- **tools-off** (default) — the agent runs with **all built-in tools disallowed**
+  (`--disallowedTools …`), so it genuinely can't execute, edit, read, or reach the
+  network: pure conversation, **no host access, no sandbox**. Faithful to how your
+  agent reasons and what it knows.
 - **tools-on** — `--dangerously-skip-permissions`: the agent can use tools during
   the eval. **Only run inside `sandbox/`** — an automated eval has no human to
   approve tool calls, and adversarial scenarios can drive destructive actions or

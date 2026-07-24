@@ -120,7 +120,15 @@ class _BearerAuthMiddleware:
         headers = dict(scope.get("headers") or [])
         auth = headers.get(b"authorization", b"").decode("latin-1")
         presented = auth[7:] if auth[:7].lower() == "bearer " else ""
-        if not (presented and hmac.compare_digest(presented, self._expected)):
+        # Compare as bytes: hmac.compare_digest raises TypeError on non-ASCII str,
+        # which would surface as a 500. Guard so any bad token is a clean 401.
+        try:
+            ok = bool(presented) and hmac.compare_digest(
+                presented.encode("utf-8"), self._expected.encode("utf-8")
+            )
+        except (TypeError, ValueError):
+            ok = False
+        if not ok:
             resp = JSONResponse(
                 {"error": "unauthorized", "message": "Valid bearer token required."},
                 status_code=401,
@@ -162,6 +170,7 @@ def create_app(backend: ClaudeCodeBackend | None = None) -> Starlette:
             project_dir=os.environ.get("CLAUDE_PROJECT_DIR"),
             model=os.environ.get("CLAUDE_MODEL", "claude-opus-4-8"),
             tools=os.environ.get("CLAUDE_TOOLS", "off"),
+            turn_timeout=float(os.environ.get("CLAUDE_TURN_TIMEOUT", "240")),
         )
 
     api_key = os.environ.get("A2A_API_KEY")
