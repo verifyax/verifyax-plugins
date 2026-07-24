@@ -18,6 +18,7 @@ Modes:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -106,9 +107,14 @@ class ClaudeCodeBackend:
                 )
             except asyncio.TimeoutError:
                 proc.kill()
+                # Reap the killed child so it doesn't linger as a zombie / leak a
+                # PID — matters under repeated timeouts and the sandbox's
+                # --pids-limit.
+                with contextlib.suppress(Exception):
+                    await asyncio.wait_for(proc.wait(), 10)
                 raise ClaudeAgentError(
                     f"Claude agent timed out after {self._turn_timeout}s "
-                    "(raise turn_timeout or the VerifyAX agent timeout)."
+                    "(raise turn_timeout, and keep the VerifyAX agent timeout above it)."
                 )
 
             if proc.returncode != 0:

@@ -70,8 +70,8 @@ connector's agent details:
 - **Register the agent** as an **A2A** agent:
   - `agent_url` = the public tunnel URL from step 4
   - `agent_type` = `A2A`
-  - `agent_parameters` = `{ "auth_method": "bearer", "token": "<A2A_API_KEY>", "timeout": 180000, "max_requests_per_minute": 4 }`
-  - (`timeout` in ms — raise it for tools-on / Opus, whose per-turn cold-start is slow.)
+  - `agent_parameters` = `{ "auth_method": "bearer", "token": "<A2A_API_KEY>", "timeout": 300000, "max_requests_per_minute": 4 }`
+  - (`timeout` is in ms and **must exceed the adapter's `turn_timeout`** — default 240000 ms — so VerifyAX doesn't abandon a turn the adapter is still processing. Raise both for Opus / tools-on cold starts.)
 - **Discover/validate tags** for `scenario_type` `info_exchange`.
 - **Generate the scenario** with the chosen tags + `context_prompt`; poll its job to `COMPLETED`.
 - (Optional) **preview credits**, then **trigger the simulation** with `evaluate_on_complete: true`.
