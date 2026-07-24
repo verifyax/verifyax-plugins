@@ -30,10 +30,13 @@ Security + robustness fixes from code review (Bugbot).
   the prompt now goes over stdin so untrusted text can never be interpreted as flags.
 - **tools-off also passes `--strict-mcp-config`** so a project's/user's MCP servers (dynamically
   named `mcp__*` tools the static disallow list can't match) don't load — closing a
-  host-access gap when the user's settings pre-approve MCP tools.
+  host-access gap when the user's settings pre-approve MCP tools. The built-in disallow list
+  is expanded to the full current tool set (adds `Skill`, `AskUserQuestion`, `EnterPlanMode`,
+  `TaskOutput`, …).
 - **Timeout kills the whole process tree asynchronously** (Windows `taskkill /T` no longer
   blocks the event loop); session id is stored before the error check (resume survives an
-  error turn); per-context caches are bounded.
+  error turn); per-context caches are bounded, and eviction never drops a context with an
+  in-flight turn (no lock/`--resume` race).
 - **Tunnel checksum pins the installed binary** consistently (was comparing the archive on
   download vs. the binary on cache/PATH — mismatched on macOS); archive members are validated
   as regular files before extraction.
