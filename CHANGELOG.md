@@ -25,6 +25,20 @@ Security + robustness fixes from code review (Bugbot).
 - **`CLAUDE_TURN_TIMEOUT`** env now wires through the `create_app` factory (was fixed at 240s).
 - **Sandbox** run/auth use a writable `cvx-agent-home` volume so `claude --resume` works under
   `--read-only` (Claude needs a writable home for auth/session state).
+- **Prompt is fed on stdin, not argv.** Turn text starting with `-` was parsed as CLI options
+  (broke the turn) and was a flag-injection surface into the same argv as the security flags;
+  the prompt now goes over stdin so untrusted text can never be interpreted as flags.
+- **tools-off also passes `--strict-mcp-config`** so a project's/user's MCP servers (dynamically
+  named `mcp__*` tools the static disallow list can't match) don't load — closing a
+  host-access gap when the user's settings pre-approve MCP tools.
+- **Timeout kills the whole process tree asynchronously** (Windows `taskkill /T` no longer
+  blocks the event loop); session id is stored before the error check (resume survives an
+  error turn); per-context caches are bounded.
+- **Tunnel checksum pins the installed binary** consistently (was comparing the archive on
+  download vs. the binary on cache/PATH — mismatched on macOS); archive members are validated
+  as regular files before extraction.
+- **`derive_base` re-validates the host** on the fallback path (no raw/garbage header in the
+  card URL); **`CLAUDE_TURN_TIMEOUT`** is parsed defensively (bad/non-positive → 240s).
 
 ### [0.1.0] — 2026-07-24
 

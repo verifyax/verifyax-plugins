@@ -64,6 +64,8 @@ CLAUDE_MODEL="claude-opus-4-8" CLAUDE_TOOLS="off" \
 # 2. Expose it (new terminal) — auto-downloads cloudflared, prints TUNNEL_URL=...
 python scripts/tunnel.py --port 8091
 ```
+> On PowerShell/Windows the inline-env form in step 1 doesn't work — set `$env:VAR='...'`
+> lines first (or populate `.env`) before the `uvicorn` command.
 Then, via the `verifyax-api` skill: **register** the A2A agent (`agent_url` = the
 tunnel URL, `agent_parameters` = `{auth_method: "bearer", token: "<A2A_API_KEY>",
 timeout: 300000}` — keep this above the adapter's `turn_timeout`, default 240000 ms),
