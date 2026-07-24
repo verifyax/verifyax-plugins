@@ -7,6 +7,25 @@ Versions are tracked per plugin.
 
 ## verifyax-claude-agent
 
+### [0.1.1] — 2026-07-24
+
+Security + robustness fixes from code review (Bugbot).
+
+#### Fixed
+
+- **tools-off now truly disables tools.** It previously passed `--allowedTools ""`, which only
+  affects auto-approval — the agent could still run shell commands. tools-off now removes tool
+  availability via `--disallowedTools` (verified: shell exec is blocked), a genuine
+  no-host-access mode.
+- **Timeouts kill the whole `claude` process tree** (new process group + `killpg` / `taskkill /T`),
+  not just the direct child — no orphaned/zombie processes under `--pids-limit`.
+- **Bearer check no longer 500s** on a non-ASCII token (bytes compare + guard → clean 401).
+- **Tunnel checksum/version pin** (`CLOUDFLARED_SHA256` / `CLOUDFLARED_VERSION`) is now enforced on
+  PATH and cached binaries too, not only fresh downloads.
+- **`CLAUDE_TURN_TIMEOUT`** env now wires through the `create_app` factory (was fixed at 240s).
+- **Sandbox** run/auth use a writable `cvx-agent-home` volume so `claude --resume` works under
+  `--read-only` (Claude needs a writable home for auth/session state).
+
 ### [0.1.0] — 2026-07-24
 
 Initial release. Expose your own Claude Code agent over A2A so VerifyAX can evaluate it —

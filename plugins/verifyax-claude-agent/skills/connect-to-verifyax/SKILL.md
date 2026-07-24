@@ -60,6 +60,8 @@ A2A_API_KEY=<key> CLAUDE_PROJECT_DIR=<dir> CLAUDE_MODEL=<model> CLAUDE_TOOLS=<of
   python -m uvicorn claude_agent_a2a.server:get_app --factory --host 127.0.0.1 --port 8091
 ```
 Verify it's up: `GET http://127.0.0.1:8091/.well-known/agent-card.json`.
+For **tools-on**, run this **inside the sandbox container** (which sets
+`CVX_SANDBOX_CONFIRMED=1`) — the host command above deliberately refuses tools-on.
 
 ## 4. Expose it publicly (tunnel — automated)
 Run the bundled helper in the background; it ensures `cloudflared` (downloads it if

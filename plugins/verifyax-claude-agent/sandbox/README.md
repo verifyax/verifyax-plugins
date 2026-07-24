@@ -12,9 +12,12 @@ docker build -t claude-verifyax-sandbox -f sandbox/Dockerfile .
 
 ## Authenticate the Claude CLI inside (one-time, interactive)
 ```
-docker run -it --rm --name cvx-auth claude-verifyax-sandbox claude /login
+docker run -it --rm --name cvx-auth \
+  -v cvx-agent-home:/home/agent \
+  claude-verifyax-sandbox claude /login
 # ...or commit an authenticated image; do NOT bake credentials into the Dockerfile.
 ```
+The `cvx-agent-home` volume persists the login so the run below reuses it.
 Prefer authenticating *inside* the container over mounting your host `~/.claude`:
 with tools-on, a coaxed agent could read and exfiltrate mounted credentials.
 
@@ -24,11 +27,14 @@ docker run --rm -p 127.0.0.1:8091:8091 \
   -e A2A_API_KEY="<long-random>" \
   -e CLAUDE_MODEL="claude-opus-4-8" \
   -v "$(pwd)/redacted-project:/work:rw" \
+  -v cvx-agent-home:/home/agent \
   --read-only --tmpfs /tmp \
   --cap-drop ALL \
   --pids-limit 256 --memory 2g \
   claude-verifyax-sandbox
 ```
+The `cvx-agent-home` volume gives Claude a **writable home** for auth/session state —
+required for `claude --resume` multi-turn — while the rootfs stays `--read-only`.
 
 ## Hardening checklist
 - **Redacted project** mounted at `/work` — no real secrets in `CLAUDE.md`/memory

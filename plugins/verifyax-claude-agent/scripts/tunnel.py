@@ -46,6 +46,16 @@ def _sha256(path: str) -> str:
     return h.hexdigest()
 
 
+def _verify_pin(path: str) -> None:
+    """If CLOUDFLARED_SHA256 is set, verify this binary matches — applied to PATH
+    hits and cached binaries too, not only fresh downloads."""
+    expected = os.environ.get("CLOUDFLARED_SHA256", "").strip().lower()
+    if expected:
+        digest = _sha256(path)
+        if digest != expected:
+            sys.exit(f"cloudflared checksum mismatch at {path}: expected {expected}, got {digest}")
+
+
 def _asset() -> tuple[str, str]:
     """Return (release asset name, kind) for this OS/arch. kind: exe|tgz|bin."""
     sysname = platform.system().lower()
@@ -61,11 +71,13 @@ def _asset() -> tuple[str, str]:
 def _ensure_cloudflared(cache_dir: str) -> str:
     on_path = shutil.which("cloudflared")
     if on_path:
+        _verify_pin(on_path)  # verify a PATH binary too when a pin is set
         return on_path
     name, kind = _asset()
     os.makedirs(cache_dir, exist_ok=True)
     exe = os.path.join(cache_dir, "cloudflared.exe" if kind == "exe" else "cloudflared")
     if os.path.exists(exe):
+        _verify_pin(exe)  # verify a cached binary too when a pin is set
         return exe
     url = _release_base() + name
     dl = os.path.join(cache_dir, name)
