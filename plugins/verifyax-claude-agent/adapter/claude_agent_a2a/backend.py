@@ -37,8 +37,15 @@ logger = logging.getLogger(__name__)
 _OFF_DISALLOWED_TOOLS = [
     "Task", "Bash", "BashOutput", "KillShell", "KillBash",
     "Glob", "Grep", "Read", "Edit", "Write", "NotebookEdit",
-    "WebFetch", "WebSearch", "TodoWrite", "SlashCommand", "ExitPlanMode",
+    "WebFetch", "WebSearch", "TodoWrite", "SlashCommand",
+    "ExitPlanMode", "EnterPlanMode", "AskUserQuestion", "Skill",
+    "TaskOutput", "TaskCreate", "TaskUpdate", "TaskGet", "TaskList", "TaskStop",
+    "ListMcpResources", "ReadMcpResource",
 ]
+# --disallowedTools ignores unknown names, so over-listing is safe and future-proofs
+# against renames. MCP tools are named dynamically (mcp__*) and can't be enumerated —
+# they're neutralized separately via --strict-mcp-config in _build_cmd. tools-off thus
+# denies the full built-in set + blocks MCP; the sandbox remains the hard boundary.
 
 # Bound the per-context session/lock caches so a long-lived server doesn't grow
 # without limit.
@@ -114,6 +121,26 @@ class ClaudeCodeBackend:
             lock = asyncio.Lock()
             self._locks[context_id] = lock
         return lock
+
+    def _evict_stale(self, current: str) -> None:
+        # Bound the caches WITHOUT evicting a context that has an in-flight turn
+        # (its lock is held) — doing so would let a parallel turn create a fresh
+        # lock and race --resume updates. Runs synchronously (no await), so it can't
+        # interleave with another coroutine mid-eviction.
+        if len(self._sessions) > _MAX_CONTEXTS:
+            for k in list(self._sessions):
+                lk = self._locks.get(k)
+                if k != current and (lk is None or not lk.locked()):
+                    self._sessions.pop(k, None)
+                    self._locks.pop(k, None)
+                    break
+        # Also drop stray free locks for contexts that never stored a session.
+        if len(self._locks) > _MAX_CONTEXTS:
+            for k in list(self._locks):
+                if k != current and k not in self._sessions and not self._locks[k].locked():
+                    self._locks.pop(k, None)
+                    if len(self._locks) <= _MAX_CONTEXTS:
+                        break
 
     def _build_cmd(self, session_id: str | None) -> list[str]:
         # The prompt is fed on STDIN, never as an argv positional — otherwise turn
@@ -197,11 +224,7 @@ class ClaudeCodeBackend:
             sid = data.get("session_id")
             if sid:
                 self._sessions[context_id] = sid
-                if len(self._sessions) > _MAX_CONTEXTS:
-                    stale = next((k for k in self._sessions if k != context_id), None)
-                    if stale is not None:
-                        self._sessions.pop(stale, None)
-                        self._locks.pop(stale, None)
+                self._evict_stale(context_id)
             if data.get("is_error"):
                 raise ClaudeAgentError(
                     str(data.get("result") or "claude reported an error")
