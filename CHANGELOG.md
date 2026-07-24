@@ -18,9 +18,10 @@ the complement to `verifyax-api`/`verifyax-mcp` (which *drive* evaluations).
   A2A endpoint. Each A2A `context_id` maps to a resumable Claude session (`--resume`), so
   multi-turn evaluations keep state. Public agent card; bearer-gated `message/send`.
 - **`connect-to-verifyax` skill**: guided flow — collect inputs → start adapter + tunnel →
-  register → run scenario → report scores.
-- **`scripts/verifyax_run.py`**: connectivity test → register → generate scenario → simulate
-  → fetch evaluation (standalone CLI, plus `--list-tags`).
+  evaluate → report scores.
+- **Reuses the `verifyax-api` skill** for all VerifyAX API work (register → tags → scenario →
+  simulate → fetch evaluation). This plugin holds no copy of the API surface, so the contract
+  stays in one place and can't drift.
 - **Two modes**: `tools-off` (pure conversation, no sandbox) and `tools-on` (autonomous tool
   use, via the disposable `sandbox/` container with the documented safety guardrails).
 

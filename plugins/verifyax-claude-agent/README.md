@@ -19,8 +19,7 @@ session (`--resume`), giving VerifyAX a normal multi-turn agent to score.
 |------|------|
 | `adapter/claude_agent_a2a/backend.py` | `ClaudeCodeBackend` — wraps `claude -p` per context (tools off/on) |
 | `adapter/claude_agent_a2a/server.py` | A2A server: public agent card + bearer-gated `message/send` |
-| `scripts/verifyax_run.py` | register → scenario → run → results (standalone CLI) |
-| `skills/connect-to-verifyax/SKILL.md` | the **guided** flow (invoke with Claude Code) |
+| `skills/connect-to-verifyax/SKILL.md` | the **guided** flow; reuses the `verifyax-api` skill for the VerifyAX API |
 | `sandbox/` | disposable container for **tools-on** runs |
 | `.claude-plugin/plugin.json` | Claude Code plugin manifest |
 
@@ -35,6 +34,7 @@ session (`--resume`), giving VerifyAX a normal multi-turn agent to score.
 ## Prerequisites
 - The **`claude` CLI** installed + authenticated (`claude -p "hi" --output-format json` works).
 - `pip install -r adapter/requirements.txt`
+- The **`verifyax-api` plugin** installed (same marketplace) — this plugin defers all VerifyAX API calls to it.
 - A **VerifyAX API key**.
 - A way to expose the local port publicly (a **tunnel** like `cloudflared`, or hosting) —
   VerifyAX is cloud and must reach the adapter inbound.
@@ -42,12 +42,15 @@ session (`--resume`), giving VerifyAX a normal multi-turn agent to score.
 ## Guided path (recommended)
 Install as a Claude Code plugin and run the skill:
 ```
-/connect-to-verifyax
+/verifyax-claude-agent:connect-to-verifyax
 ```
 Claude collects your inputs (VerifyAX key, project, model, tools mode, tags),
-starts the adapter + tunnel, registers, runs the scenario, and reports the scores.
+starts the adapter + tunnel, then uses the **`verifyax-api`** skill to register the
+agent, run the scenario, and report the scores.
 
-## Standalone path
+## Manual path
+Start the adapter and tunnel yourself, then drive VerifyAX with the **`verifyax-api`**
+skill (or the VerifyAX API directly, per its OpenAPI contract).
 ```bash
 # 1. Start the adapter (tools-off; pick a free port)
 cd adapter
@@ -57,19 +60,11 @@ CLAUDE_MODEL="claude-opus-4-8" CLAUDE_TOOLS="off" \
 
 # 2. Expose it (new terminal)
 cloudflared tunnel --url http://127.0.0.1:8091      # -> https://<public-url>
-
-# 3. Run the evaluation
-export VERIFYAX_API_KEY="sk-ver-api-..."
-python scripts/verifyax_run.py \
-  --agent-url "https://<public-url>" --agent-key "<A2A_API_KEY>" \
-  --name "My Claude Agent (opus, tools-off)" \
-  --tags task_decomposition tradeoff_reasoning \
-  --context "A user brings a complex, multi-part planning problem and expects the agent to decompose it and reason about trade-offs." \
-  --timeout-ms 180000
-
-# List selectable tags:
-python scripts/verifyax_run.py --list-tags --scenario-type info_exchange
 ```
+Then, via the `verifyax-api` skill: **register** the A2A agent (`agent_url` = the
+tunnel URL, `agent_parameters` = `{auth_method: "bearer", token: "<A2A_API_KEY>",
+timeout: 180000}`), **generate** a scenario with your tags, **run** it, and **fetch**
+the evaluation.
 
 ## Configuration (env)
 See `.env.example`. Key ones: `A2A_API_KEY`, `CLAUDE_PROJECT_DIR`, `CLAUDE_MODEL`,
