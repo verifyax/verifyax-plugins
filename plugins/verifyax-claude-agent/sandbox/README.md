@@ -10,31 +10,27 @@ the agent's context. Treat this box as throwaway.
 docker build -t claude-verifyax-sandbox -f sandbox/Dockerfile .
 ```
 
-## Authenticate the Claude CLI inside (one-time, interactive)
+## Run (ephemeral, disposable)
+Start one throwaway container with an **ephemeral** (tmpfs) home — so nothing,
+including any adversarial writes, persists across runs — authenticate inside it, then
+start the adapter:
 ```
-docker run -it --rm --name cvx-auth \
-  -v cvx-agent-home:/home/agent \
-  claude-verifyax-sandbox claude /login
-# ...or commit an authenticated image; do NOT bake credentials into the Dockerfile.
-```
-The `cvx-agent-home` volume persists the login so the run below reuses it.
-Prefer authenticating *inside* the container over mounting your host `~/.claude`:
-with tools-on, a coaxed agent could read and exfiltrate mounted credentials.
-
-## Run (safe flags)
-```
-docker run --rm -p 127.0.0.1:8091:8091 \
+docker run -it --rm -p 127.0.0.1:8091:8091 \
   -e A2A_API_KEY="<long-random>" \
   -e CLAUDE_MODEL="claude-opus-4-8" \
   -v "$(pwd)/redacted-project:/work:rw" \
-  -v cvx-agent-home:/home/agent \
-  --read-only --tmpfs /tmp \
-  --cap-drop ALL \
-  --pids-limit 256 --memory 2g \
-  claude-verifyax-sandbox
+  --tmpfs /home/agent --read-only --tmpfs /tmp \
+  --cap-drop ALL --pids-limit 256 --memory 2g \
+  claude-verifyax-sandbox bash
+# then, inside the container:
+claude /login     # ephemeral auth — lives only for this container's lifetime
+python -m uvicorn claude_agent_a2a.server:get_app --factory --host 0.0.0.0 --port 8091
 ```
-The `cvx-agent-home` volume gives Claude a **writable home** for auth/session state —
-required for `claude --resume` multi-turn — while the rootfs stays `--read-only`.
+The tmpfs home is writable (so `claude --resume` works within the run) but is
+**discarded with the container**, keeping the sandbox truly disposable. Auth and any
+state are per-run — re-auth in each fresh container; do **not** bake credentials into
+the image, and prefer this over mounting your host `~/.claude` (a coaxed agent could
+read/exfiltrate mounted credentials).
 
 ## Hardening checklist
 - **Redacted project** mounted at `/work` — no real secrets in `CLAUDE.md`/memory

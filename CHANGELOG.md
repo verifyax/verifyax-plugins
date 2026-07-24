@@ -23,8 +23,9 @@ Security + robustness fixes from code review (Bugbot).
 - **Tunnel checksum/version pin** (`CLOUDFLARED_SHA256` / `CLOUDFLARED_VERSION`) is now enforced on
   PATH and cached binaries too, not only fresh downloads.
 - **`CLAUDE_TURN_TIMEOUT`** env now wires through the `create_app` factory (was fixed at 240s).
-- **Sandbox** run/auth use a writable `cvx-agent-home` volume so `claude --resume` works under
-  `--read-only` (Claude needs a writable home for auth/session state).
+- **Sandbox** uses an **ephemeral tmpfs home** (writable so `claude --resume` works under
+  `--read-only`, but discarded with the container so no state — or adversarial write —
+  persists across runs); auth is per-run.
 - **Prompt is fed on stdin, not argv.** Turn text starting with `-` was parsed as CLI options
   (broke the turn) and was a flag-injection surface into the same argv as the security flags;
   the prompt now goes over stdin so untrusted text can never be interpreted as flags.
