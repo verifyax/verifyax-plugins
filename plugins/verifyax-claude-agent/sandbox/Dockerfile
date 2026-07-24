@@ -17,7 +17,6 @@ RUN npm install -g @anthropic-ai/claude-code
 
 WORKDIR /app
 COPY adapter/ /app/adapter/
-COPY scripts/ /app/scripts/
 RUN pip3 install --no-cache-dir --break-system-packages -r /app/adapter/requirements.txt
 
 # Non-root; the agent's working project is mounted read-write at /work.

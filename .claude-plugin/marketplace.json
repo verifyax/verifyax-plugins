@@ -27,7 +27,7 @@
     {
       "name": "verifyax-claude-agent",
       "source": "./plugins/verifyax-claude-agent",
-      "description": "Expose your own Claude Code agent over A2A so VerifyAX can evaluate it — wraps the local `claude` CLI behind an A2A endpoint, with a guided skill, a tools-on sandbox, and the run pipeline.",
+      "description": "Expose your own Claude Code agent over A2A so VerifyAX can evaluate it — wraps the local `claude` CLI behind an A2A endpoint, with a guided skill and a tools-on sandbox; reuses the verifyax-api skill for the VerifyAX API.",
       "version": "0.1.0",
       "category": "ai-tooling",
       "tags": ["verifyax", "a2a", "agent-evaluation", "claude-code", "conscium"],

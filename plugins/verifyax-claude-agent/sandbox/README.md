@@ -42,4 +42,4 @@ docker run --rm -p 127.0.0.1:8091:8091 \
 
 ## Expose to VerifyAX
 Run your tunnel against `127.0.0.1:8091` (e.g. `cloudflared tunnel --url http://127.0.0.1:8091`)
-and give the public URL to `scripts/verifyax_run.py` (or the skill).
+and give the public URL to the `verifyax-api` skill (via `connect-to-verifyax`) to register + run.

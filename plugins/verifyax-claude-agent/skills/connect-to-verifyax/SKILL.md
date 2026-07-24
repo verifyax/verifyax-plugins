@@ -1,37 +1,40 @@
 ---
 name: connect-to-verifyax
-description: Expose the user's own Claude Code agent over A2A and evaluate it in VerifyAX. Use when the user wants to test, benchmark, evaluate, or "run VerifyAX against" their Claude agent / their Claude Code project, or connect their Claude agent to VerifyAX. Drives the local adapter (claude_agent_a2a), a public tunnel, and the VerifyAX register -> scenario -> run -> results pipeline.
+description: Expose the user's own Claude Code agent over A2A and evaluate it in VerifyAX. Use when the user wants to test, benchmark, evaluate, or "run VerifyAX against" their Claude agent / their Claude Code project, or connect their Claude agent to VerifyAX. Starts the local adapter (claude_agent_a2a) + a public tunnel, then defers all VerifyAX API work (register -> scenario -> run -> results) to the `verifyax-api` skill.
 ---
 
 # Connect a Claude agent to VerifyAX
 
 Goal: take the user's **own Claude Code agent** (their project's `CLAUDE.md` + memory
-+ persona), expose it over **A2A**, register it in **VerifyAX**, run a scenario against
-it, and report the scores. The agent-under-test is driven via the headless `claude`
-CLI, so it behaves as *their* agent, not a generic Claude.
++ persona), expose it over **A2A**, and evaluate it in **VerifyAX**. This skill owns
+the *connector* half (adapter + tunnel + the A2A registration parameters); it **reuses
+the `verifyax-api` skill** for every VerifyAX API call, so the API contract lives in one
+place and never drifts.
 
 ## 0. Prerequisites (check, don't assume)
 - `claude` CLI installed, authenticated, and `claude -p "hi" --output-format json` works.
 - Adapter deps: `pip install -r "${CLAUDE_PLUGIN_ROOT}/adapter/requirements.txt"` (needs `a2a-sdk`, `starlette`, `uvicorn`).
-- A **working VerifyAX API key** (`VERIFYAX_API_KEY`).
+- **The `verifyax-api` plugin is installed** (same marketplace) — this skill hands off
+  all VerifyAX API work to it. If it isn't available, install
+  `verifyax-api@verifyax-plugins` first.
+- A **working VerifyAX API key** (`VERIFYAX_API_KEY`) — used only by the `verifyax-api` steps.
 - A way to expose the local port publicly (a **tunnel** such as `cloudflared`, or hosting).
   VerifyAX is cloud, so it must reach the adapter inbound.
 
-> Bundled files (`adapter/`, `scripts/`) are referenced via `${CLAUDE_PLUGIN_ROOT}`
-> — Claude Code sets it to this plugin's install dir. If you're running from a
-> checkout of the repo instead of an installed plugin, substitute the repo's
-> `plugins/verifyax-claude-agent` path.
+> Bundled files (`adapter/`) are referenced via `${CLAUDE_PLUGIN_ROOT}` — Claude Code
+> sets it to this plugin's install dir. From a repo checkout, substitute
+> `plugins/verifyax-claude-agent`.
 
 ## 1. Collect the inputs (ask the user)
 - **VerifyAX API key**.
 - **Which agent** = which project dir defines it (`CLAUDE_PROJECT_DIR`; default: current dir).
 - **Model** (`CLAUDE_MODEL`): `claude-opus-4-8` | `claude-sonnet-5` | `claude-haiku-4-5-20251001`.
 - **Tools mode** (`CLAUDE_TOOLS`): `off` (default, safe, no sandbox) or `on`.
-- **Scenario**: skill tags + a `context_prompt`. List tags with
-  `python "${CLAUDE_PLUGIN_ROOT}/scripts/verifyax_run.py" --list-tags --scenario-type info_exchange`.
-  For a Claude Code agent (agentic/task-oriented persona), **reasoning/safety tags**
-  (e.g. `task_decomposition`, `tradeoff_reasoning`, `goal_injection_resistance`,
-  `data_hallucination_resistance`) fit better than empathy-style tags.
+- **Scenario**: skill tags + a `context_prompt`. Discover tags via the `verifyax-api`
+  skill (it knows the tag catalogue). For a Claude Code agent (agentic/task-oriented
+  persona), **reasoning/safety tags** (e.g. `task_decomposition`, `tradeoff_reasoning`,
+  `goal_injection_resistance`, `data_hallucination_resistance`) fit better than
+  empathy-style tags.
 
 ## 2. SAFETY GATE — tools-on requires a sandbox
 If the user chose **`CLAUDE_TOOLS=on`**, STOP and confirm it will run in an isolated
@@ -58,17 +61,21 @@ cloudflared tunnel --url http://127.0.0.1:8091
 ```
 Confirm `<public-url>/.well-known/agent-card.json` is reachable from outside.
 
-## 5. Run the evaluation
-```
-VERIFYAX_API_KEY=<key> python "${CLAUDE_PLUGIN_ROOT}/scripts/verifyax_run.py" \
-  --agent-url <public-url> --agent-key <A2A_API_KEY> \
-  --name "Claude Agent (<model>, tools-<off|on>)" \
-  --tags <tag1> <tag2> --context "<scenario context>" \
-  --timeout-ms 180000
-```
-This runs: connectivity test -> register -> generate scenario (polls) -> credit
-preview -> simulate (polls) -> fetch evaluation, and prints the scores.
-Raise `--timeout-ms` for tools-on / Opus (headless cold-start per turn can be slow).
+## 5. Evaluate via the `verifyax-api` skill  ← the handoff
+Do **not** call the VerifyAX API directly from here. **Use the `verifyax-api` skill**
+for every step below (it fetches the canonical OpenAPI contract, handles async
+`201`-then-poll, tag compatibility, rate limits, and error semantics). Give it the
+connector's agent details:
+
+- **Register the agent** as an **A2A** agent:
+  - `agent_url` = the public tunnel URL from step 4
+  - `agent_type` = `A2A`
+  - `agent_parameters` = `{ "auth_method": "bearer", "token": "<A2A_API_KEY>", "timeout": 180000, "max_requests_per_minute": 4 }`
+  - (`timeout` in ms — raise it for tools-on / Opus, whose per-turn cold-start is slow.)
+- **Discover/validate tags** for `scenario_type` `info_exchange`.
+- **Generate the scenario** with the chosen tags + `context_prompt`; poll its job to `COMPLETED`.
+- (Optional) **preview credits**, then **trigger the simulation** with `evaluate_on_complete: true`.
+- **Poll** the run to `COMPLETED`, then **fetch the evaluation**.
 
 ## 6. Report
 Summarize to the user: per-tag grades, success verdict, and the executive summary.
@@ -83,4 +90,5 @@ registration if it was a one-off.
 - Multi-turn works: each A2A `context_id` maps to a resumable Claude session, so the
   agent keeps conversation state across the simulated turns.
 - The adapter never ships credentials; each user brings their own Claude auth +
-  VerifyAX key. See the repo `README.md` for the standalone (non-skill) path.
+  VerifyAX key. This plugin deliberately holds **no** copy of the VerifyAX API surface —
+  that lives in `verifyax-api`.
