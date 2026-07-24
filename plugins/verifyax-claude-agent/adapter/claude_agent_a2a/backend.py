@@ -46,6 +46,21 @@ class ClaudeCodeBackend:
     ) -> None:
         if tools not in ("off", "on"):
             raise ValueError("tools must be 'off' or 'on'")
+        # Enforced gate: autonomous tool use (no human approval) is refused unless
+        # the disposable sandbox marker is set. In an automated eval, adversarial
+        # scenarios can drive destructive / exfiltration actions — so tools-on must
+        # never run by accident on a real machine. The sandbox image sets
+        # CVX_SANDBOX_CONFIRMED=1; set it yourself only if you fully accept the risk.
+        _confirmed = os.environ.get("CVX_SANDBOX_CONFIRMED", "").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+        if tools == "on" and not _confirmed:
+            raise ValueError(
+                "tools-on refused: run it only inside the disposable sandbox "
+                "(sets CVX_SANDBOX_CONFIRMED=1). Automated evals have no human to "
+                "approve tool calls and adversarial scenarios can drive destructive "
+                "or data-exfiltration actions. Use tools-off, or the sandbox."
+            )
         self._project_dir = project_dir or os.getcwd()
         self._model = model
         self._tools = tools

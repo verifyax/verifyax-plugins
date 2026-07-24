@@ -25,6 +25,7 @@ USER agent
 
 ENV PYTHONPATH=/app/adapter \
     CLAUDE_TOOLS=on \
+    CVX_SANDBOX_CONFIRMED=1 \
     CLAUDE_PROJECT_DIR=/work \
     CLAUDE_MODEL=claude-opus-4-8
 WORKDIR /work

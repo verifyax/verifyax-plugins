@@ -78,7 +78,25 @@ your agent *reasons* and what it *knows persistently*; the persona is the agenti
 Claude Code one, so reasoning/safety tags fit better than empathy-style tags.
 
 ## Security
-- Each user brings their **own** Claude auth + VerifyAX key — the kit ships no credentials.
-- Set a strong `A2A_API_KEY`; the agent card is public but `message/send` requires it.
-- **tools-on ⇒ sandbox only** (see `sandbox/README.md`); rotate the CLI auth after such a run.
-- Raise the VerifyAX agent `timeout` for tools-on / Opus (headless cold-start per turn).
+- Each user brings their **own** Claude auth + VerifyAX key — the plugin ships no credentials.
+- **Inbound auth:** set a strong random `A2A_API_KEY`; the card is public but `message/send`
+  requires it. **Never reuse your VerifyAX API key as this bearer** — it's a public inbound
+  credential, and leaking an account-scoped key compromises your whole workspace. Keep the
+  adapter bearer dedicated and throwaway-scoped.
+- **tools-on ⇒ sandbox only, enforced:** the adapter refuses `CLAUDE_TOOLS=on` unless
+  `CVX_SANDBOX_CONFIRMED=1` (the `sandbox/` image sets it). Automated evals have no human to
+  approve tool calls and adversarial scenarios can drive destructive/exfiltration actions.
+  Rotate the Claude CLI auth after a tools-on run.
+- **Memory → transcripts:** pointing at a real project sends its `CLAUDE.md` + memory into the
+  eval, and VerifyAX **stores transcripts**. Prefer a clean/redacted dir — the guided flow
+  defaults to that.
+- **Tunnel integrity:** `scripts/tunnel.py` prints the downloaded cloudflared's SHA256 and can
+  pin/verify it (`CLOUDFLARED_VERSION` / `CLOUDFLARED_SHA256`).
+- Keep the VerifyAX agent `timeout` above the adapter `turn_timeout` for tools-on / Opus.
+
+## Continuity vs. one-off
+Default is **one-off**: a random `A2A_API_KEY` + an ephemeral tunnel URL, so
+register-then-delete each run. For a **persistent** setup that reconnects across restarts,
+keep a **fixed `A2A_API_KEY`**, use a **stable URL** (`PUBLIC_BASE_URL` via a named tunnel or
+hosting), register **once**, and `PATCH` the registration if anything changes. Quick-tunnel
+URLs change every run — so continuity needs a stable URL, not just a stable token.

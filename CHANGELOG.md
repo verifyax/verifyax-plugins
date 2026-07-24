@@ -30,6 +30,14 @@ the complement to `verifyax-api`/`verifyax-mcp` (which *drive* evaluations).
   project sends its `CLAUDE.md` + memory into VerifyAX-stored transcripts.
 - **Two modes**: `tools-off` (pure conversation, no sandbox) and `tools-on` (autonomous tool
   use, via the disposable `sandbox/` container with the documented safety guardrails).
+- **Security hardening**: tools-on is **enforced-gated** — the adapter refuses it unless
+  `CVX_SANDBOX_CONFIRMED=1` (set by the sandbox image); the tunnel prints and can pin/verify
+  the cloudflared SHA256 (`CLOUDFLARED_VERSION` / `CLOUDFLARED_SHA256`); timed-out `claude`
+  children are reaped; and docs warn against reusing the VerifyAX key as the inbound bearer
+  and about project memory reaching VerifyAX-stored transcripts.
+- **Continuity**: supports a fixed `A2A_API_KEY` + a stable `PUBLIC_BASE_URL` (named tunnel or
+  hosting) to register once and reconnect across restarts (`PATCH` to update); otherwise the
+  default flow is register-then-delete per run.
 
 ## verifyax-api
 
