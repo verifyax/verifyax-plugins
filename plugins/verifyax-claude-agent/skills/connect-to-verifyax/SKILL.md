@@ -48,6 +48,8 @@ calls**, and VerifyAX runs **adversarial** scenarios — a simulated attacker ca
 real destructive actions or exfiltrate anything in the agent's context (including
 secrets in memory). Do **not** run tools-on against a real machine / real data / real
 credentials. Default to `off` unless the user has an isolated box and accepts the risk.
+The adapter **enforces** this — tools-on is refused unless `CVX_SANDBOX_CONFIRMED=1`,
+which the sandbox image sets. Never set that var outside a disposable sandbox.
 
 ## 3. Start the adapter
 Create `.env` from `.env.example`, set a strong random `A2A_API_KEY`, then run
@@ -96,6 +98,18 @@ Flag any tag that came back ungraded (the simulated user may not have exercised 
 Stop the adapter and the tunnel. If tools-on ran, treat any credential the agent
 could read as exposed and advise rotation. Optionally delete the VerifyAX agent
 registration if it was a one-off.
+
+## 8. Continuity (optional)
+By default this is a **one-off**: a random `A2A_API_KEY` + an ephemeral tunnel URL, so
+**register-then-delete** each run. To **reconnect the same registration** across
+restarts instead:
+1. Keep a **fixed `A2A_API_KEY`** — persist and reuse it (**never** the VerifyAX key;
+   it's a public inbound credential).
+2. Use a **stable URL** (`PUBLIC_BASE_URL` via a named tunnel or hosting) — quick-tunnel
+   URLs change every run, which alone breaks the persisted registration.
+3. If the URL or token does change, **`PATCH` the agent** (via `verifyax-api`) to update
+   `agent_url` / token rather than re-registering.
+Then register once and reuse it.
 
 ## Notes
 - Multi-turn works: each A2A `context_id` maps to a resumable Claude session, so the

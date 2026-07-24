@@ -4,6 +4,7 @@
   "forwardPorts": [8091],
   "containerEnv": {
     "CLAUDE_TOOLS": "on",
+    "CVX_SANDBOX_CONFIRMED": "1",
     "CLAUDE_PROJECT_DIR": "/work",
     "CLAUDE_MODEL": "claude-opus-4-8"
   },

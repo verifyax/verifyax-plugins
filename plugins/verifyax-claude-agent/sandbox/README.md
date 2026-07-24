@@ -39,6 +39,9 @@ docker run --rm -p 127.0.0.1:8091:8091 \
   firewall; or run it on a throwaway VM.
 - **Disposable:** `--rm`, and rebuild fresh next time.
 - After a run, treat the CLI auth token as potentially exposed and **rotate** it.
+- **tools-on gate:** this image sets `CVX_SANDBOX_CONFIRMED=1` — that's what lets the adapter
+  run tools-on. Outside this image the adapter refuses tools-on, so don't set that var elsewhere.
+- Optionally pin/verify the tunnel binary via `CLOUDFLARED_VERSION` / `CLOUDFLARED_SHA256`.
 
 ## Expose to VerifyAX
 Run your tunnel against `127.0.0.1:8091` (e.g. `cloudflared tunnel --url http://127.0.0.1:8091`)

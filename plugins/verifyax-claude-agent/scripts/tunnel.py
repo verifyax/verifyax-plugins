@@ -15,6 +15,7 @@ Stop it by killing the process (the skill does this at cleanup).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import platform
 import re
@@ -26,8 +27,23 @@ import tarfile
 import tempfile
 import urllib.request
 
-_RELEASE = "https://github.com/cloudflare/cloudflared/releases/latest/download/"
 _URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
+
+
+def _release_base() -> str:
+    """cloudflared release base URL. Pin with CLOUDFLARED_VERSION; else 'latest'."""
+    ver = os.environ.get("CLOUDFLARED_VERSION", "").strip()
+    if ver:
+        return f"https://github.com/cloudflare/cloudflared/releases/download/{ver}/"
+    return "https://github.com/cloudflare/cloudflared/releases/latest/download/"
+
+
+def _sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _asset() -> tuple[str, str]:
@@ -51,20 +67,27 @@ def _ensure_cloudflared(cache_dir: str) -> str:
     exe = os.path.join(cache_dir, "cloudflared.exe" if kind == "exe" else "cloudflared")
     if os.path.exists(exe):
         return exe
-    url = _RELEASE + name
+    url = _release_base() + name
+    dl = os.path.join(cache_dir, name)
     print(f"Downloading cloudflared ({name})...", file=sys.stderr, flush=True)
+    urllib.request.urlretrieve(url, dl)
+    # Integrity: print the SHA256 (auditable); enforce it if CLOUDFLARED_SHA256 is set.
+    digest = _sha256(dl)
+    print(f"cloudflared SHA256={digest}", file=sys.stderr, flush=True)
+    expected = os.environ.get("CLOUDFLARED_SHA256", "").strip().lower()
+    if expected and digest != expected:
+        os.remove(dl)
+        sys.exit(f"cloudflared checksum mismatch: expected {expected}, got {digest}")
     if kind == "tgz":
-        tmp = os.path.join(cache_dir, name)
-        urllib.request.urlretrieve(url, tmp)
-        with tarfile.open(tmp) as tf:
+        with tarfile.open(dl) as tf:
             member = next((m for m in tf.getmembers() if m.name.rsplit("/", 1)[-1] == "cloudflared"), None)
             if member is None:
                 sys.exit("cloudflared binary not found in the downloaded archive.")
             member.name = "cloudflared"
             tf.extract(member, cache_dir)
-        os.remove(tmp)
+        os.remove(dl)
     else:
-        urllib.request.urlretrieve(url, exe)
+        os.replace(dl, exe)
     if kind in ("tgz", "bin"):
         os.chmod(exe, os.stat(exe).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
     return exe
