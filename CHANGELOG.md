@@ -5,6 +5,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the plugins follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Versions are tracked per plugin.
 
+## verifyax-claude-agent
+
+### [0.1.0] — 2026-07-24
+
+Initial release. Expose your own Claude Code agent over A2A so VerifyAX can evaluate it —
+the complement to `verifyax-api`/`verifyax-mcp` (which *drive* evaluations).
+
+#### Added
+
+- **Adapter** (`claude_agent_a2a`) that wraps the local `claude` CLI headlessly behind an
+  A2A endpoint. Each A2A `context_id` maps to a resumable Claude session (`--resume`), so
+  multi-turn evaluations keep state. Public agent card; bearer-gated `message/send`.
+- **`connect-to-verifyax` skill**: guided flow — collect inputs → start adapter + tunnel →
+  register → run scenario → report scores.
+- **`scripts/verifyax_run.py`**: connectivity test → register → generate scenario → simulate
+  → fetch evaluation (standalone CLI, plus `--list-tags`).
+- **Two modes**: `tools-off` (pure conversation, no sandbox) and `tools-on` (autonomous tool
+  use, via the disposable `sandbox/` container with the documented safety guardrails).
+
 ## verifyax-api
 
 ### [0.3.0] — 2026-07-03
