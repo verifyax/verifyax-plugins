@@ -14,12 +14,12 @@ place and never drifts.
 ## 0. Prerequisites (check, don't assume)
 - `claude` CLI installed, authenticated, and `claude -p "hi" --output-format json` works.
 - Adapter deps: `pip install -r "${CLAUDE_PLUGIN_ROOT}/adapter/requirements.txt"` (needs `a2a-sdk`, `starlette`, `uvicorn`).
-- **The `verifyax-api` plugin is installed** (same marketplace) — this skill hands off
-  all VerifyAX API work to it. If it isn't available, install
-  `verifyax-api@verifyax-plugins` first.
+- The **`verifyax-api` plugin** — declared as a dependency of this plugin, so it is
+  auto-installed alongside it. This skill hands off all VerifyAX API work to it.
 - A **working VerifyAX API key** (`VERIFYAX_API_KEY`) — used only by the `verifyax-api` steps.
-- A way to expose the local port publicly (a **tunnel** such as `cloudflared`, or hosting).
-  VerifyAX is cloud, so it must reach the adapter inbound.
+- Inbound reach is **handled for you**: step 4 runs the bundled `tunnel.py`, which ensures
+  `cloudflared` (downloading it if missing) and prints the public URL. No manual tunnel
+  setup needed — bring your own hosting only if you prefer.
 
 > Bundled files (`adapter/`) are referenced via `${CLAUDE_PLUGIN_ROOT}` — Claude Code
 > sets it to this plugin's install dir. From a repo checkout, substitute
@@ -27,7 +27,12 @@ place and never drifts.
 
 ## 1. Collect the inputs (ask the user)
 - **VerifyAX API key**.
-- **Which agent** = which project dir defines it (`CLAUDE_PROJECT_DIR`; default: current dir).
+- **Which agent** = which project dir defines it (`CLAUDE_PROJECT_DIR`). **Default to a
+  clean/empty dir for the first run.** Pointing at a real project loads its `CLAUDE.md` +
+  memory into the agent — and every turn is **stored on VerifyAX**. If that memory holds
+  secrets, prefer a clean or curated dir (true even for tools-off, since the agent can
+  still *quote* memory). Only use the real project when the user explicitly wants full
+  "their agent" fidelity and accepts that its context leaves the machine.
 - **Model** (`CLAUDE_MODEL`): `claude-opus-4-8` | `claude-sonnet-5` | `claude-haiku-4-5-20251001`.
 - **Tools mode** (`CLAUDE_TOOLS`): `off` (default, safe, no sandbox) or `on`.
 - **Scenario**: skill tags + a `context_prompt`. Discover tags via the `verifyax-api`
@@ -54,12 +59,15 @@ A2A_API_KEY=<key> CLAUDE_PROJECT_DIR=<dir> CLAUDE_MODEL=<model> CLAUDE_TOOLS=<of
 ```
 Verify it's up: `GET http://127.0.0.1:8091/.well-known/agent-card.json`.
 
-## 4. Expose it publicly (tunnel)
-Start a tunnel to the adapter port and capture the public HTTPS URL, e.g.:
+## 4. Expose it publicly (tunnel — automated)
+Run the bundled helper in the background; it ensures `cloudflared` (downloads it if
+missing) and opens a Quick Tunnel to the adapter port:
 ```
-cloudflared tunnel --url http://127.0.0.1:8091
+python "${CLAUDE_PLUGIN_ROOT}/scripts/tunnel.py" --port 8091
 ```
-Confirm `<public-url>/.well-known/agent-card.json` is reachable from outside.
+Read the `TUNNEL_URL=https://<...>.trycloudflare.com` line it prints — that's your
+`<public-url>`. Confirm `<public-url>/.well-known/agent-card.json` is reachable.
+(Bring-your-own hosting is fine too — just use that URL instead.)
 
 ## 5. Evaluate via the `verifyax-api` skill  ← the handoff
 Do **not** call the VerifyAX API directly from here. **Use the `verifyax-api` skill**
@@ -74,7 +82,10 @@ connector's agent details:
   - (`timeout` is in ms and **must exceed the adapter's `turn_timeout`** — default 240000 ms — so VerifyAX doesn't abandon a turn the adapter is still processing. Raise both for Opus / tools-on cold starts.)
 - **Discover/validate tags** for `scenario_type` `info_exchange`.
 - **Generate the scenario** with the chosen tags + `context_prompt`; poll its job to `COMPLETED`.
-- (Optional) **preview credits**, then **trigger the simulation** with `evaluate_on_complete: true`.
+- **Preview credits and CONFIRM with the user before the paid run** (VerifyAX
+  `workspace-credit-preview`). Also warn that the run spends the user's **Claude quota** —
+  one `claude` invocation per simulated turn (many turns), on the chosen model. Only after
+  they confirm, **trigger the simulation** with `evaluate_on_complete: true`.
 - **Poll** the run to `COMPLETED`, then **fetch the evaluation**.
 
 ## 6. Report

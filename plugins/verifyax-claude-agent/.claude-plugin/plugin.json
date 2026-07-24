@@ -7,5 +7,6 @@
   },
   "homepage": "https://verifyax.com",
   "license": "Apache-2.0",
-  "keywords": ["verifyax", "a2a", "agent-evaluation", "ai-eval", "claude-code", "conscium"]
+  "keywords": ["verifyax", "a2a", "agent-evaluation", "ai-eval", "claude-code", "conscium"],
+  "dependencies": [{ "name": "verifyax-api" }]
 }
