@@ -31,9 +31,12 @@ account and an API key (below) before they do anything useful.
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `verifyax-api` | Drive the VerifyAX REST API programmatically (a skill) — register agents, generate scenarios, trigger simulations, fetch evaluations. **Best for writing code.**                             |
 | `verifyax-mcp` | The same actions as native MCP tools Claude calls directly — register agents, generate scenarios, evaluate, inspect results. **Best for conversational, no-code use.** Installs [`@verifyax/mcp-server`](https://www.npmjs.com/package/@verifyax/mcp-server). |
+| `verifyax-claude-agent` | Evaluate **your own Claude Code agent** — exposes it over A2A so VerifyAX can run scenarios against it (wraps the local `claude` CLI, guided by a skill). **Best for testing a Claude agent you're building.** Needs Python + a tunnel (set up for you automatically); reuses `verifyax-api`. |
 
 Not sure which? Pick **`verifyax-mcp`** for conversational workflows (Claude calls the tools for
-you); **`verifyax-api`** when you want Claude to write scripts against the API.
+you); **`verifyax-api`** when you want Claude to write scripts against the API. Pick
+**`verifyax-claude-agent`** when the thing you want to *evaluate* is itself a Claude Code agent —
+it exposes yours for VerifyAX to score (and drives `verifyax-api` under the hood).
 
 ## Before you start
 
@@ -49,8 +52,9 @@ Add the marketplace, then install whichever plugin you want:
 
 ```
 /plugin marketplace add verifyax/verifyax-plugins
-/plugin install verifyax-api@verifyax-plugins    # the skill
-/plugin install verifyax-mcp@verifyax-plugins    # the MCP server
+/plugin install verifyax-api@verifyax-plugins             # the skill
+/plugin install verifyax-mcp@verifyax-plugins             # the MCP server
+/plugin install verifyax-claude-agent@verifyax-plugins    # expose YOUR Claude agent for eval (auto-installs verifyax-api)
 ```
 
 How you provide the API key depends on the plugin:
@@ -63,6 +67,14 @@ How you provide the API key depends on the plugin:
   ```
 
   The skill reads the key from this variable; it will never ask you to paste it into a chat.
+
+- **`verifyax-claude-agent`** uses the same `VERIFYAX_API_KEY` (via `verifyax-api`), and
+  additionally needs the **`claude` CLI** plus its adapter's Python deps
+  (`pip install -r plugins/verifyax-claude-agent/adapter/requirements.txt`). It exposes *your*
+  Claude agent over a public tunnel it sets up for you, then runs the eval. Run it with
+  `/verifyax-claude-agent:connect-to-verifyax` — see its
+  [README](plugins/verifyax-claude-agent/README.md) for the guided flow, the two modes
+  (tools-off / tools-on), and exactly what gets sent to VerifyAX.
 
 ## Quickstart: zero to your first evaluation
 
@@ -139,8 +151,8 @@ the GitHub Release. Build output lives in `dist/` (gitignored).
 
 Each plugin pins an explicit `version` in its `plugin.json` and is versioned independently. Users
 only receive updates when we bump the version, so we bump on every release. Current versions:
-**`verifyax-api` 0.3.0**, **`verifyax-mcp` 0.2.1**. See [`CHANGELOG.md`](CHANGELOG.md) for release
-notes.
+**`verifyax-api` 0.3.0**, **`verifyax-mcp` 0.2.1**, **`verifyax-claude-agent` 0.1.0**. See
+[`CHANGELOG.md`](CHANGELOG.md) for release notes.
 
 ## License
 
