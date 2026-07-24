@@ -83,18 +83,13 @@ def _ensure_cloudflared(cache_dir: str) -> str:
     dl = os.path.join(cache_dir, name)
     print(f"Downloading cloudflared ({name})...", file=sys.stderr, flush=True)
     urllib.request.urlretrieve(url, dl)
-    # Integrity: print the SHA256 (auditable); enforce it if CLOUDFLARED_SHA256 is set.
-    digest = _sha256(dl)
-    print(f"cloudflared SHA256={digest}", file=sys.stderr, flush=True)
-    expected = os.environ.get("CLOUDFLARED_SHA256", "").strip().lower()
-    if expected and digest != expected:
-        os.remove(dl)
-        sys.exit(f"cloudflared checksum mismatch: expected {expected}, got {digest}")
     if kind == "tgz":
         with tarfile.open(dl) as tf:
             member = next((m for m in tf.getmembers() if m.name.rsplit("/", 1)[-1] == "cloudflared"), None)
             if member is None:
                 sys.exit("cloudflared binary not found in the downloaded archive.")
+            if not member.isreg():
+                sys.exit("unexpected cloudflared archive member type (not a regular file).")
             member.name = "cloudflared"
             tf.extract(member, cache_dir)
         os.remove(dl)
@@ -102,6 +97,10 @@ def _ensure_cloudflared(cache_dir: str) -> str:
         os.replace(dl, exe)
     if kind in ("tgz", "bin"):
         os.chmod(exe, os.stat(exe).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    # Integrity: verify the INSTALLED binary (consistent across download/cache/PATH),
+    # print its SHA256 (auditable), and enforce CLOUDFLARED_SHA256 if set.
+    print(f"cloudflared SHA256={_sha256(exe)}", file=sys.stderr, flush=True)
+    _verify_pin(exe)
     return exe
 
 

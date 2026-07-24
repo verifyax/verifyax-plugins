@@ -7,8 +7,10 @@ directory so it loads THEIR ``CLAUDE.md`` + memory — i.e. *their* agent, not a
 generic Claude.
 
 Modes:
-  tools="off" (default) -> ``--allowedTools ""`` : pure conversation, zero blast
-      radius, no sandbox required.
+  tools="off" (default) -> ``--disallowedTools <all built-in tools>`` +
+      ``--strict-mcp-config`` : pure conversation, no host access, no sandbox
+      required. (``--allowedTools`` does NOT stop execution — only disallowing does;
+      ``--strict-mcp-config`` keeps the project's MCP tools from loading.)
   tools="on"            -> ``--dangerously-skip-permissions`` : autonomous tool
       use. ONLY run inside an isolated sandbox (see ``sandbox/``) — in an
       automated eval there is no human to approve tool calls, and adversarial
@@ -38,16 +40,23 @@ _OFF_DISALLOWED_TOOLS = [
     "WebFetch", "WebSearch", "TodoWrite", "SlashCommand", "ExitPlanMode",
 ]
 
+# Bound the per-context session/lock caches so a long-lived server doesn't grow
+# without limit.
+_MAX_CONTEXTS = 512
 
-def _kill_tree(proc) -> None:
+
+async def _kill_tree(proc) -> None:
     """Kill the subprocess AND its children — the `claude` CLI spawns its own
-    process tree, which a bare ``proc.kill()`` would orphan."""
+    process tree, which a bare ``proc.kill()`` would orphan. Async so the Windows
+    taskkill doesn't block the event loop."""
     try:
         if os.name == "nt":
-            subprocess.run(
-                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                capture_output=True,
+            killer = await asyncio.create_subprocess_exec(
+                "taskkill", "/F", "/T", "/PID", str(proc.pid),
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
             )
+            await killer.wait()
         else:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
     except (ProcessLookupError, PermissionError, OSError):
@@ -106,19 +115,20 @@ class ClaudeCodeBackend:
             self._locks[context_id] = lock
         return lock
 
-    def _build_cmd(self, text: str, session_id: str | None) -> list[str]:
-        cmd = [
-            self._claude, "-p", text,
-            "--output-format", "json",
-            "--model", self._model,
-        ]
+    def _build_cmd(self, session_id: str | None) -> list[str]:
+        # The prompt is fed on STDIN, never as an argv positional — otherwise turn
+        # text starting with '-' is parsed as CLI options (breaks the turn) and
+        # injects flags into the same argv that carries the security flags. So argv
+        # holds only trusted flags.
+        cmd = [self._claude, "-p", "--output-format", "json", "--model", self._model]
         if session_id:
             cmd += ["--resume", session_id]
         if self._tools == "off":
-            # Remove tool AVAILABILITY (not just auto-approval). --allowedTools does
-            # NOT stop execution; --disallowedTools does — so this is a genuine
-            # pure-conversation, no-host-access mode.
-            cmd += ["--disallowedTools", *_OFF_DISALLOWED_TOOLS]
+            # Remove tool AVAILABILITY (not just auto-approval): --allowedTools does
+            # NOT stop execution, --disallowedTools does. --strict-mcp-config keeps
+            # the project's/user's MCP servers (dynamically-named mcp__* tools the
+            # static list can't cover) from loading — a genuine no-host-access mode.
+            cmd += ["--strict-mcp-config", "--disallowedTools", *_OFF_DISALLOWED_TOOLS]
         else:
             cmd += ["--dangerously-skip-permissions"]  # autonomous — SANDBOX ONLY
         cmd += self._extra_args
@@ -133,7 +143,7 @@ class ClaudeCodeBackend:
         never raced. ``user_token`` is accepted for Backend-protocol parity and
         ignored (the agent's identity is the local CLI auth)."""
         async with self._lock(context_id):
-            cmd = self._build_cmd(text, self._sessions.get(context_id))
+            cmd = self._build_cmd(self._sessions.get(context_id))
             # New process group/session so a timeout can kill claude's whole child
             # tree, not just the direct process.
             create_kwargs = (
@@ -145,6 +155,7 @@ class ClaudeCodeBackend:
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,
                     cwd=self._project_dir,
+                    stdin=asyncio.subprocess.PIPE,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     **create_kwargs,
@@ -157,12 +168,12 @@ class ClaudeCodeBackend:
 
             try:
                 out, err = await asyncio.wait_for(
-                    proc.communicate(), self._turn_timeout
+                    proc.communicate(input=text.encode("utf-8")), self._turn_timeout
                 )
             except asyncio.TimeoutError:
                 # Kill claude's whole process tree (it spawns children), then reap
                 # so nothing lingers as a zombie / leaks PIDs under --pids-limit.
-                _kill_tree(proc)
+                await _kill_tree(proc)
                 with contextlib.suppress(Exception):
                     await asyncio.wait_for(proc.wait(), 10)
                 raise ClaudeAgentError(
@@ -181,13 +192,20 @@ class ClaudeCodeBackend:
                     f"Unparseable claude output: {out[:200]!r}"
                 ) from exc
 
+            # Store the session id BEFORE any error check so a turn that advanced
+            # the session is still resumable next time.
+            sid = data.get("session_id")
+            if sid:
+                self._sessions[context_id] = sid
+                if len(self._sessions) > _MAX_CONTEXTS:
+                    stale = next((k for k in self._sessions if k != context_id), None)
+                    if stale is not None:
+                        self._sessions.pop(stale, None)
+                        self._locks.pop(stale, None)
             if data.get("is_error"):
                 raise ClaudeAgentError(
                     str(data.get("result") or "claude reported an error")
                 )
-            sid = data.get("session_id")
-            if sid:
-                self._sessions[context_id] = sid
             reply = data.get("result")
             if not reply:
                 raise ClaudeAgentError("Claude agent returned an empty reply.")

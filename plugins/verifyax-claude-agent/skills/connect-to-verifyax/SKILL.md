@@ -62,6 +62,8 @@ A2A_API_KEY=<key> CLAUDE_PROJECT_DIR=<dir> CLAUDE_MODEL=<model> CLAUDE_TOOLS=<of
 Verify it's up: `GET http://127.0.0.1:8091/.well-known/agent-card.json`.
 For **tools-on**, run this **inside the sandbox container** (which sets
 `CVX_SANDBOX_CONFIRMED=1`) — the host command above deliberately refuses tools-on.
+(The inline-env form is bash; on PowerShell use `$env:A2A_API_KEY='…'; …; python -m
+uvicorn …`, or populate `.env`.)
 
 ## 4. Expose it publicly (tunnel — automated)
 Run the bundled helper in the background; it ensures `cloudflared` (downloads it if

@@ -48,6 +48,20 @@ logger = logging.getLogger(__name__)
 
 _HOST_RE = re.compile(r"^[A-Za-z0-9.\-]+(:\d+)?$")
 
+
+def _env_turn_timeout() -> float:
+    """Parse CLAUDE_TURN_TIMEOUT defensively — a bad or non-positive value falls
+    back to 240s instead of crashing startup or breaking every turn."""
+    raw = os.environ.get("CLAUDE_TURN_TIMEOUT", "240")
+    try:
+        t = float(raw)
+    except (TypeError, ValueError):
+        t = 0.0
+    if not (t > 0):
+        logger.warning("CLAUDE_TURN_TIMEOUT=%r invalid; using 240s.", raw)
+        return 240.0
+    return t
+
 DEFAULT_NAME = "Claude Agent under evaluation"
 DEFAULT_DESCRIPTION = (
     "A Claude Code agent exposed over A2A for evaluation. Delegates each turn to "
@@ -170,7 +184,7 @@ def create_app(backend: ClaudeCodeBackend | None = None) -> Starlette:
             project_dir=os.environ.get("CLAUDE_PROJECT_DIR"),
             model=os.environ.get("CLAUDE_MODEL", "claude-opus-4-8"),
             tools=os.environ.get("CLAUDE_TOOLS", "off"),
-            turn_timeout=float(os.environ.get("CLAUDE_TURN_TIMEOUT", "240")),
+            turn_timeout=_env_turn_timeout(),
         )
 
     api_key = os.environ.get("A2A_API_KEY")
@@ -201,7 +215,10 @@ def create_app(backend: ClaudeCodeBackend | None = None) -> Starlette:
             or request.url.netloc
         )
         if not _HOST_RE.match(host or ""):
-            host = request.headers.get("host") or request.url.netloc
+            # The fallback must be validated too — never echo a raw/garbage header.
+            host = request.url.netloc  # authority parsed by the ASGI server
+            if not _HOST_RE.match(host or ""):
+                host = "localhost"
         return f"{proto}://{host}"
 
     async def agent_card(request: Request) -> JSONResponse:
