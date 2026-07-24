@@ -46,13 +46,20 @@ def _sha256(path: str) -> str:
     return h.hexdigest()
 
 
-def _verify_pin(path: str) -> None:
+def _verify_pin(path: str, *, remove_on_fail: bool = False) -> None:
     """If CLOUDFLARED_SHA256 is set, verify this binary matches — applied to PATH
-    hits and cached binaries too, not only fresh downloads."""
+    hits and cached binaries too, not only fresh downloads. On mismatch for a
+    cached/downloaded binary (``remove_on_fail``), delete it so the next run can
+    re-fetch instead of being stuck failing forever."""
     expected = os.environ.get("CLOUDFLARED_SHA256", "").strip().lower()
     if expected:
         digest = _sha256(path)
         if digest != expected:
+            if remove_on_fail:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
             sys.exit(f"cloudflared checksum mismatch at {path}: expected {expected}, got {digest}")
 
 
@@ -77,7 +84,7 @@ def _ensure_cloudflared(cache_dir: str) -> str:
     os.makedirs(cache_dir, exist_ok=True)
     exe = os.path.join(cache_dir, "cloudflared.exe" if kind == "exe" else "cloudflared")
     if os.path.exists(exe):
-        _verify_pin(exe)  # verify a cached binary too when a pin is set
+        _verify_pin(exe, remove_on_fail=True)  # verify a cached binary; drop it if it mismatches
         return exe
     url = _release_base() + name
     dl = os.path.join(cache_dir, name)
@@ -100,7 +107,7 @@ def _ensure_cloudflared(cache_dir: str) -> str:
     # Integrity: verify the INSTALLED binary (consistent across download/cache/PATH),
     # print its SHA256 (auditable), and enforce CLOUDFLARED_SHA256 if set.
     print(f"cloudflared SHA256={_sha256(exe)}", file=sys.stderr, flush=True)
-    _verify_pin(exe)
+    _verify_pin(exe, remove_on_fail=True)  # a bad download shouldn't poison the cache
     return exe
 
 
