@@ -21,7 +21,13 @@ the complement to `verifyax-api`/`verifyax-mcp` (which *drive* evaluations).
   evaluate → report scores.
 - **Reuses the `verifyax-api` skill** for all VerifyAX API work (register → tags → scenario →
   simulate → fetch evaluation). This plugin holds no copy of the API surface, so the contract
-  stays in one place and can't drift.
+  stays in one place and can't drift. Declared as a **plugin dependency**, so `verifyax-api`
+  auto-installs with this plugin.
+- **Automated tunnel** (`scripts/tunnel.py`): ensures/downloads `cloudflared` and opens a
+  Quick Tunnel, printing the public `TUNNEL_URL` — no manual tunnel setup.
+- **Guided-flow guardrails**: previews credits and confirms before the paid run (and warns
+  it spends Claude quota); defaults to a clean project dir and warns that pointing at a real
+  project sends its `CLAUDE.md` + memory into VerifyAX-stored transcripts.
 - **Two modes**: `tools-off` (pure conversation, no sandbox) and `tools-on` (autonomous tool
   use, via the disposable `sandbox/` container with the documented safety guardrails).
 

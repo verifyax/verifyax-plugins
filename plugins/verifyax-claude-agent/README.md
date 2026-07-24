@@ -20,6 +20,7 @@ session (`--resume`), giving VerifyAX a normal multi-turn agent to score.
 | `adapter/claude_agent_a2a/backend.py` | `ClaudeCodeBackend` — wraps `claude -p` per context (tools off/on) |
 | `adapter/claude_agent_a2a/server.py` | A2A server: public agent card + bearer-gated `message/send` |
 | `skills/connect-to-verifyax/SKILL.md` | the **guided** flow; reuses the `verifyax-api` skill for the VerifyAX API |
+| `scripts/tunnel.py` | ensures + runs `cloudflared`, prints the public `TUNNEL_URL` (auto tunnel) |
 | `sandbox/` | disposable container for **tools-on** runs |
 | `.claude-plugin/plugin.json` | Claude Code plugin manifest |
 
@@ -34,10 +35,10 @@ session (`--resume`), giving VerifyAX a normal multi-turn agent to score.
 ## Prerequisites
 - The **`claude` CLI** installed + authenticated (`claude -p "hi" --output-format json` works).
 - `pip install -r adapter/requirements.txt`
-- The **`verifyax-api` plugin** installed (same marketplace) — this plugin defers all VerifyAX API calls to it.
+- The **`verifyax-api` plugin** — auto-installed as a declared dependency; this plugin defers all VerifyAX API calls to it.
 - A **VerifyAX API key**.
-- A way to expose the local port publicly (a **tunnel** like `cloudflared`, or hosting) —
-  VerifyAX is cloud and must reach the adapter inbound.
+- Inbound reach is handled for you — the guided flow runs `scripts/tunnel.py`, which
+  auto-downloads/runs `cloudflared`. (Bring your own hosting if you prefer.)
 
 ## Guided path (recommended)
 Install as a Claude Code plugin and run the skill:
@@ -58,8 +59,8 @@ A2A_API_KEY="<long-random>" CLAUDE_PROJECT_DIR="/path/to/your/agent" \
 CLAUDE_MODEL="claude-opus-4-8" CLAUDE_TOOLS="off" \
   python -m uvicorn claude_agent_a2a.server:get_app --factory --host 127.0.0.1 --port 8091
 
-# 2. Expose it (new terminal)
-cloudflared tunnel --url http://127.0.0.1:8091      # -> https://<public-url>
+# 2. Expose it (new terminal) — auto-downloads cloudflared, prints TUNNEL_URL=...
+python scripts/tunnel.py --port 8091
 ```
 Then, via the `verifyax-api` skill: **register** the A2A agent (`agent_url` = the
 tunnel URL, `agent_parameters` = `{auth_method: "bearer", token: "<A2A_API_KEY>",
