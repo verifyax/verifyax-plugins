@@ -63,8 +63,8 @@ cloudflared tunnel --url http://127.0.0.1:8091      # -> https://<public-url>
 ```
 Then, via the `verifyax-api` skill: **register** the A2A agent (`agent_url` = the
 tunnel URL, `agent_parameters` = `{auth_method: "bearer", token: "<A2A_API_KEY>",
-timeout: 180000}`), **generate** a scenario with your tags, **run** it, and **fetch**
-the evaluation.
+timeout: 300000}` — keep this above the adapter's `turn_timeout`, default 240000 ms),
+**generate** a scenario with your tags, **run** it, and **fetch** the evaluation.
 
 ## Configuration (env)
 See `.env.example`. Key ones: `A2A_API_KEY`, `CLAUDE_PROJECT_DIR`, `CLAUDE_MODEL`,
