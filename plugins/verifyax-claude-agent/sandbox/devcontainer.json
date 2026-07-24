@@ -1,0 +1,13 @@
+{
+  "name": "claude-verifyax-sandbox",
+  "build": { "dockerfile": "Dockerfile", "context": ".." },
+  "forwardPorts": [8091],
+  "containerEnv": {
+    "CLAUDE_TOOLS": "on",
+    "CLAUDE_PROJECT_DIR": "/work",
+    "CLAUDE_MODEL": "claude-opus-4-8"
+  },
+  "runArgs": ["--cap-drop", "ALL", "--pids-limit", "256", "--memory", "2g"],
+  "remoteUser": "agent",
+  "postCreateCommand": "echo 'Authenticate the Claude CLI (claude /login) before running the adapter. Set A2A_API_KEY.'"
+}

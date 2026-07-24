@@ -1,0 +1,5 @@
+# Adapter runtime deps. Also requires the Claude Code CLI on PATH (`claude`),
+# authenticated, and a working `claude -p` (headless) run.
+a2a-sdk>=1.1.0
+starlette>=0.37
+uvicorn>=0.30
