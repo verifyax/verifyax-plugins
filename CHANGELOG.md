@@ -130,6 +130,15 @@ and backward-compatible — no breaking changes to existing workflows.
 
 ## verifyax-mcp
 
+### [0.3.3] — 2026-07-28
+
+#### Changed
+
+- Tracked the `@verifyax/mcp-server` 0.3.3 release, which fixes `preview_run_cost` failing with
+  "Request validation failed" whenever `num_runs` was omitted (the server now applies the
+  documented default of 1), and the same omission silently nulling `evaluate_agent`'s
+  `credits_estimate`. **Plugin 0.3.3 ↔ server 0.3.3.**
+
 ### [0.3.2] — 2026-07-28
 
 #### Fixed
