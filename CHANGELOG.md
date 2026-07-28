@@ -130,6 +130,21 @@ and backward-compatible — no breaking changes to existing workflows.
 
 ## verifyax-mcp
 
+### [0.3.2] — 2026-07-28
+
+#### Fixed
+
+- **The MCP server never started.** The plugin launched the server as `npx -y @verifyax/mcp-server@<version>`,
+  but the package ships two binaries (`verifyax-mcp-server` and `verifyax-mcp-server-http`) and
+  neither matches the package name, so npx failed with "could not determine executable to run"
+  on every session start. The launch command now names the binary explicitly:
+  `npx -y -p @verifyax/mcp-server@0.3.2 verifyax-mcp-server`.
+
+#### Changed
+
+- Tracked the `@verifyax/mcp-server` 0.3.2 release (connector-type updates: DIRECTLINE /
+  Copilot Studio support in `register_agent` and `list_agents`). **Plugin 0.3.x ↔ server 0.3.2.**
+
 ### [0.2.1] — 2026-07-01
 
 #### Changed
