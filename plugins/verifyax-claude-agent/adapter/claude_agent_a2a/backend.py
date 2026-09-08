@@ -7,10 +7,10 @@ directory so it loads THEIR ``CLAUDE.md`` + memory — i.e. *their* agent, not a
 generic Claude.
 
 Modes:
-  tools="off" (default) -> ``--disallowedTools <all built-in tools>`` +
-      ``--strict-mcp-config`` : pure conversation, no host access, no sandbox
-      required. (``--allowedTools`` does NOT stop execution — only disallowing does;
-      ``--strict-mcp-config`` keeps the project's MCP tools from loading.)
+  tools="off" (default) -> ``--tools ""`` + ``--strict-mcp-config`` :
+      pure conversation, no host access, no sandbox required. The empty built-in
+      tool allow-list is fail-closed when Claude Code adds new tools, while
+      ``--strict-mcp-config`` keeps project/user MCP tools from loading.
   tools="on"            -> ``--dangerously-skip-permissions`` : autonomous tool
       use. ONLY run inside an isolated sandbox (see ``sandbox/``) — in an
       automated eval there is no human to approve tool calls, and adversarial
@@ -30,22 +30,6 @@ import subprocess
 
 logger = logging.getLogger(__name__)
 
-
-# Built-in tools removed in tools-off mode so the agent genuinely can't act on or
-# read the host (pure conversation). NOTE: --allowedTools does NOT disable tools —
-# only --disallowedTools removes availability (verified). Kept comprehensive.
-_OFF_DISALLOWED_TOOLS = [
-    "Task", "Bash", "BashOutput", "KillShell", "KillBash",
-    "Glob", "Grep", "Read", "Edit", "Write", "NotebookEdit",
-    "WebFetch", "WebSearch", "TodoWrite", "SlashCommand",
-    "ExitPlanMode", "EnterPlanMode", "AskUserQuestion", "Skill",
-    "TaskOutput", "TaskCreate", "TaskUpdate", "TaskGet", "TaskList", "TaskStop",
-    "ListMcpResources", "ReadMcpResource",
-]
-# --disallowedTools ignores unknown names, so over-listing is safe and future-proofs
-# against renames. MCP tools are named dynamically (mcp__*) and can't be enumerated —
-# they're neutralized separately via --strict-mcp-config in _build_cmd. tools-off thus
-# denies the full built-in set + blocks MCP; the sandbox remains the hard boundary.
 
 # Bound the per-context session/lock caches so a long-lived server doesn't grow
 # without limit.
@@ -111,6 +95,20 @@ class ClaudeCodeBackend:
         self._claude = shutil.which(claude_bin) or claude_bin
         self._turn_timeout = turn_timeout
         self._extra_args = list(extra_args or [])
+        if tools == "off":
+            protected = (
+                "--tools",
+                "--allowedtools",
+                "--disallowedtools",
+                "--mcp-config",
+                "--strict-mcp-config",
+                "--dangerously-skip-permissions",
+                "--disable-slash-commands",
+            )
+            for arg in self._extra_args:
+                option = arg.split("=", 1)[0].lower()
+                if option in protected:
+                    raise ValueError(f"extra_args cannot override tools-off security flag {option}")
         # context_id -> Claude Code session id (for --resume multi-turn state)
         self._sessions: dict[str, str] = {}
         self._locks: dict[str, asyncio.Lock] = {}
@@ -150,15 +148,22 @@ class ClaudeCodeBackend:
         cmd = [self._claude, "-p", "--output-format", "json", "--model", self._model]
         if session_id:
             cmd += ["--resume", session_id]
+        cmd += self._extra_args
         if self._tools == "off":
-            # Remove tool AVAILABILITY (not just auto-approval): --allowedTools does
-            # NOT stop execution, --disallowedTools does. --strict-mcp-config keeps
-            # the project's/user's MCP servers (dynamically-named mcp__* tools the
-            # static list can't cover) from loading — a genuine no-host-access mode.
-            cmd += ["--strict-mcp-config", "--disallowedTools", *_OFF_DISALLOWED_TOOLS]
+            # An explicit empty built-in set is fail-closed across CLI evolution:
+            # unlike a deny-list, a newly introduced tool cannot become available.
+            # MCP tools are independently excluded by the empty strict MCP config,
+            # and skills are disabled so they cannot broaden the prompt/tool surface.
+            cmd += [
+                "--tools",
+                "",
+                "--strict-mcp-config",
+                "--mcp-config",
+                '{"mcpServers":{}}',
+                "--disable-slash-commands",
+            ]
         else:
             cmd += ["--dangerously-skip-permissions"]  # autonomous — SANDBOX ONLY
-        cmd += self._extra_args
         return cmd
 
     async def send_and_wait(

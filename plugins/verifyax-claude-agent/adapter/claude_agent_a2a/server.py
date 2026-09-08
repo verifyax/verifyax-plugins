@@ -49,6 +49,10 @@ logger = logging.getLogger(__name__)
 _HOST_RE = re.compile(r"^[A-Za-z0-9.\-]+(:\d+)?$")
 
 
+def _env_enabled(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def _env_turn_timeout() -> float:
     """Parse CLAUDE_TURN_TIMEOUT defensively — a bad or non-positive value falls
     back to 240s instead of crashing startup or breaking every turn."""
@@ -188,7 +192,7 @@ def create_app(backend: ClaudeCodeBackend | None = None) -> Starlette:
         )
 
     api_key = os.environ.get("A2A_API_KEY")
-    if not api_key and not os.environ.get("A2A_ALLOW_NO_AUTH"):
+    if not api_key and not _env_enabled("A2A_ALLOW_NO_AUTH"):
         raise RuntimeError(
             "No inbound auth configured. Set A2A_API_KEY (the bearer VerifyAX will "
             "send), or A2A_ALLOW_NO_AUTH=1 for local dev only."

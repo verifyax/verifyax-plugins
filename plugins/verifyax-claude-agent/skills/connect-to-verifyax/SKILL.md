@@ -13,7 +13,8 @@ place and never drifts.
 
 ## 0. Prerequisites (check, don't assume)
 - `claude` CLI installed, authenticated, and `claude -p "hi" --output-format json` works.
-- Adapter deps: `pip install -r "${CLAUDE_PLUGIN_ROOT}/adapter/requirements.txt"` (needs `a2a-sdk`, `starlette`, `uvicorn`).
+- Adapter deps: `pip install --require-hashes -r "${CLAUDE_PLUGIN_ROOT}/adapter/requirements.lock"`
+  (the complete tested dependency graph).
 - The **`verifyax-api` plugin** — declared as a dependency of this plugin, so it is
   auto-installed alongside it. This skill hands off all VerifyAX API work to it.
 - A **working VerifyAX API key** (`VERIFYAX_API_KEY`) — used only by the `verifyax-api` steps.

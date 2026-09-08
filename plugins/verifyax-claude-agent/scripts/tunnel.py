@@ -15,6 +15,7 @@ Stop it by killing the process (the skill does this at cleanup).
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import os
 import platform
@@ -28,14 +29,26 @@ import tempfile
 import urllib.request
 
 _URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
+_PINNED_VERSION = "2026.8.3"
+_PINNED_BINARY_SHA256 = {
+    "cloudflared-darwin-amd64.tgz": "936aa4ed783b0e191fac48e7140c34605b25d8d5c0495c3599c90e350ae6e4c4",
+    "cloudflared-darwin-arm64.tgz": "50a04624531e7a98ddb65f1223905e32f84e7488ed3ee8dadcd3260aa8932603",
+    "cloudflared-linux-amd64": "f29324fe934d1e100617484c78deef803c4dc2cd351d645bbde42e96b4fccc5e",
+    "cloudflared-linux-arm64": "4bcfd35521a7cbc545ebfd5d57334a71ee180e2a64874981f374c81472118391",
+    "cloudflared-windows-amd64.exe": "83e726ed18ea78c5ad5213c4c3a3a27051393950d2bc8ed4de69bec12d14eaae",
+}
+_PINNED_ASSET_SHA256 = {
+    "cloudflared-darwin-amd64.tgz": "61e1316266a00fd70ce40da011d612badc805367fb65293dd1925f938f704c99",
+    "cloudflared-darwin-arm64.tgz": "40c9144d86df8937c5b43293a1f7d2d2107029aa74725023dd46b1b27154352f",
+}
 
 
 def _release_base() -> str:
-    """cloudflared release base URL. Pin with CLOUDFLARED_VERSION; else 'latest'."""
-    ver = os.environ.get("CLOUDFLARED_VERSION", "").strip()
-    if ver:
-        return f"https://github.com/cloudflare/cloudflared/releases/download/{ver}/"
-    return "https://github.com/cloudflare/cloudflared/releases/latest/download/"
+    """Return an immutable release URL; custom versions require a custom digest."""
+    ver = os.environ.get("CLOUDFLARED_VERSION", "").strip() or _PINNED_VERSION
+    if ver != _PINNED_VERSION and not os.environ.get("CLOUDFLARED_SHA256", "").strip():
+        sys.exit("A custom CLOUDFLARED_VERSION requires CLOUDFLARED_SHA256.")
+    return f"https://github.com/cloudflare/cloudflared/releases/download/{ver}/"
 
 
 def _sha256(path: str) -> str:
@@ -46,21 +59,24 @@ def _sha256(path: str) -> str:
     return h.hexdigest()
 
 
-def _verify_pin(path: str, *, remove_on_fail: bool = False) -> None:
-    """If CLOUDFLARED_SHA256 is set, verify this binary matches — applied to PATH
-    hits and cached binaries too, not only fresh downloads. On mismatch for a
-    cached/downloaded binary (``remove_on_fail``), delete it so the next run can
-    re-fetch instead of being stuck failing forever."""
-    expected = os.environ.get("CLOUDFLARED_SHA256", "").strip().lower()
-    if expected:
-        digest = _sha256(path)
-        if digest != expected:
-            if remove_on_fail:
-                try:
-                    os.remove(path)
-                except OSError:
-                    pass
-            sys.exit(f"cloudflared checksum mismatch at {path}: expected {expected}, got {digest}")
+def _expected_binary_sha(asset_name: str) -> str:
+    override = os.environ.get("CLOUDFLARED_SHA256", "").strip().lower()
+    if override:
+        return override
+    try:
+        return _PINNED_BINARY_SHA256[asset_name]
+    except KeyError:
+        sys.exit(f"Unsupported cloudflared platform asset: {asset_name}")
+
+
+def _verify_sha(path: str, expected: str, *, remove_on_fail: bool = False) -> None:
+    """Verify every executable/cache hit, failing closed on any mismatch."""
+    digest = _sha256(path)
+    if digest != expected:
+        if remove_on_fail:
+            with contextlib.suppress(OSError):
+                os.remove(path)
+        sys.exit(f"cloudflared checksum mismatch at {path}: expected {expected}, got {digest}")
 
 
 def _asset() -> tuple[str, str]:
@@ -76,21 +92,27 @@ def _asset() -> tuple[str, str]:
 
 
 def _ensure_cloudflared(cache_dir: str) -> str:
+    name, kind = _asset()
+    expected = _expected_binary_sha(name)
     on_path = shutil.which("cloudflared")
     if on_path:
-        _verify_pin(on_path)  # verify a PATH binary too when a pin is set
+        _verify_sha(on_path, expected)
         return on_path
-    name, kind = _asset()
-    os.makedirs(cache_dir, exist_ok=True)
+    version = os.environ.get("CLOUDFLARED_VERSION", "").strip() or _PINNED_VERSION
+    cache_dir = os.path.join(cache_dir, version)
+    os.makedirs(cache_dir, mode=0o700, exist_ok=True)
     exe = os.path.join(cache_dir, "cloudflared.exe" if kind == "exe" else "cloudflared")
     if os.path.exists(exe):
-        _verify_pin(exe, remove_on_fail=True)  # verify a cached binary; drop it if it mismatches
+        _verify_sha(exe, expected, remove_on_fail=True)
         return exe
     url = _release_base() + name
     dl = os.path.join(cache_dir, name)
     print(f"Downloading cloudflared ({name})...", file=sys.stderr, flush=True)
     urllib.request.urlretrieve(url, dl)
     if kind == "tgz":
+        asset_sha = _PINNED_ASSET_SHA256.get(name)
+        if asset_sha and version == _PINNED_VERSION:
+            _verify_sha(dl, asset_sha, remove_on_fail=True)
         with tarfile.open(dl) as tf:
             member = next((m for m in tf.getmembers() if m.name.rsplit("/", 1)[-1] == "cloudflared"), None)
             if member is None:
@@ -105,9 +127,9 @@ def _ensure_cloudflared(cache_dir: str) -> str:
     if kind in ("tgz", "bin"):
         os.chmod(exe, os.stat(exe).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
     # Integrity: verify the INSTALLED binary (consistent across download/cache/PATH),
-    # print its SHA256 (auditable), and enforce CLOUDFLARED_SHA256 if set.
+    # print its SHA256 (auditable), and enforce the source-controlled platform pin.
     print(f"cloudflared SHA256={_sha256(exe)}", file=sys.stderr, flush=True)
-    _verify_pin(exe, remove_on_fail=True)  # a bad download shouldn't poison the cache
+    _verify_sha(exe, expected, remove_on_fail=True)
     return exe
 
 

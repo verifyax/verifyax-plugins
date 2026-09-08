@@ -6,27 +6,31 @@
 # Build (from repo root):   docker build -t claude-verifyax-sandbox -f sandbox/Dockerfile .
 # Run (see sandbox/README.md for the safe flags).
 
-FROM node:20-slim
+FROM node:20.20.2-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-pip ca-certificates git curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Claude Code CLI (the engine that makes the agent "them").
-RUN npm install -g @anthropic-ai/claude-code
+RUN npm install -g @anthropic-ai/claude-code@2.1.263
 
 WORKDIR /app
 COPY adapter/ /app/adapter/
-RUN pip3 install --no-cache-dir --break-system-packages -r /app/adapter/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages \
+        --require-hashes -r /app/adapter/requirements.lock
 
-# Non-root; the agent's working project is mounted read-write at /work.
-RUN useradd -m agent && mkdir -p /work && chown -R agent /app /work
+# Non-root. The evaluated project is read-only by default; /scratch is the
+# dedicated writable workspace for evaluations that need generated output.
+RUN useradd -m agent && mkdir -p /work /scratch/tmp \
+    && chown -R agent /app /work /scratch
 USER agent
 
 ENV PYTHONPATH=/app/adapter \
     CLAUDE_TOOLS=on \
     CVX_SANDBOX_CONFIRMED=1 \
     CLAUDE_PROJECT_DIR=/work \
+    TMPDIR=/scratch \
     CLAUDE_MODEL=claude-opus-4-8
 WORKDIR /work
 EXPOSE 8091
