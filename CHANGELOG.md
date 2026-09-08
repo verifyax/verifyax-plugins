@@ -7,6 +7,27 @@ Versions are tracked per plugin.
 
 ## verifyax-claude-agent
 
+### [0.1.2] — 2026-09-07
+
+#### Security
+
+- Replace the static tools-off deny-list with Claude Code's fail-closed
+  `--tools ""` capability and test it against the exact pinned CLI.
+- Pin cloudflared `2026.8.3` and source-controlled SHA-256 values for every
+  supported platform; custom versions now require an explicit checksum.
+- Pin the sandbox base image by digest, Claude Code by exact version, and the
+  complete Python dependency graph with hashes.
+- Make the tools-on launcher deny networking by default, require an explicitly
+  marked restricted network, mount the project read-only, and provide a
+  dedicated ephemeral scratch volume.
+
+#### Testing
+
+- Add executable-plugin CI covering app imports, bearer auth, forwarded-host
+  validation, subprocess flags/stdin, timeout cleanup, context eviction,
+  tools-on gating, tunnel integrity, and the sandbox definition.
+- Pin CI actions by commit SHA and enable dependency update automation.
+
 ### [0.1.1] — 2026-07-24
 
 Security + robustness fixes from code review (Bugbot).

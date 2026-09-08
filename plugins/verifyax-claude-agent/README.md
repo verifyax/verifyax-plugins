@@ -25,10 +25,10 @@ session (`--resume`), giving VerifyAX a normal multi-turn agent to score.
 | `.claude-plugin/plugin.json` | Claude Code plugin manifest |
 
 ## Two modes
-- **tools-off** (default) — the agent runs with **all built-in tools disallowed**
-  (`--disallowedTools …`), so it genuinely can't execute, edit, read, or reach the
-  network: pure conversation, **no host access, no sandbox**. Faithful to how your
-  agent reasons and what it knows.
+- **tools-off** (default) — the agent runs with an explicit **empty built-in tool
+  set** (`--tools ""`) and an empty strict MCP configuration. This is fail-closed
+  when Claude Code adds tools: it can't execute, edit, read, or reach the network.
+  Pure conversation, **no host access, no sandbox**.
 - **tools-on** — `--dangerously-skip-permissions`: the agent can use tools during
   the eval. **Only run inside `sandbox/`** — an automated eval has no human to
   approve tool calls, and adversarial scenarios can drive destructive actions or
@@ -36,7 +36,8 @@ session (`--resume`), giving VerifyAX a normal multi-turn agent to score.
 
 ## Prerequisites
 - The **`claude` CLI** installed + authenticated (`claude -p "hi" --output-format json` works).
-- `pip install -r adapter/requirements.txt`
+- `pip install --require-hashes -r adapter/requirements.lock` (reproducible), or
+  `pip install -r adapter/requirements.txt` when intentionally updating the lock.
 - The **`verifyax-api` plugin** — auto-installed as a declared dependency; this plugin defers all VerifyAX API calls to it.
 - A **VerifyAX API key**.
 - Inbound reach is handled for you — the guided flow runs `scripts/tunnel.py`, which
@@ -94,8 +95,9 @@ Claude Code one, so reasoning/safety tags fit better than empathy-style tags.
 - **Memory → transcripts:** pointing at a real project sends its `CLAUDE.md` + memory into the
   eval, and VerifyAX **stores transcripts**. Prefer a clean/redacted dir — the guided flow
   defaults to that.
-- **Tunnel integrity:** `scripts/tunnel.py` prints the downloaded cloudflared's SHA256 and can
-  pin/verify it (`CLOUDFLARED_VERSION` / `CLOUDFLARED_SHA256`).
+- **Tunnel integrity:** `scripts/tunnel.py` defaults to a source-controlled
+  cloudflared version and per-platform SHA-256, verifying downloads, cache hits,
+  and PATH binaries. Custom versions require `CLOUDFLARED_SHA256`.
 - Keep the VerifyAX agent `timeout` above the adapter `turn_timeout` for tools-on / Opus.
 
 ## Continuity vs. one-off

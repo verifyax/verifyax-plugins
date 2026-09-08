@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /plugins/verifyax-claude-agent/adapter
+    schedule:
+      interval: weekly
+    groups:
+      claude-agent-python:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /plugins/verifyax-claude-agent/sandbox
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
