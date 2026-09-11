@@ -22,8 +22,14 @@ RUN pip3 install --no-cache-dir --break-system-packages \
 
 # Non-root. The evaluated project is read-only by default; /scratch is the
 # dedicated writable workspace for evaluations that need generated output.
-RUN useradd -m agent && mkdir -p /work /scratch/tmp \
-    && chown -R agent /app /work /scratch
+# node:*-slim already owns UID/GID 1000 (`node`); reclaim it so sandbox/run.sh
+# tmpfs mounts (uid=1000) match USER agent.
+RUN userdel -r node \
+    && if getent group node >/dev/null; then groupdel node; fi \
+    && groupadd -g 1000 agent \
+    && useradd -m -u 1000 -g 1000 agent \
+    && mkdir -p /work /scratch \
+    && chown -R agent:agent /app /work /scratch
 USER agent
 
 ENV PYTHONPATH=/app/adapter \

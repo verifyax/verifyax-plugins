@@ -1,7 +1,8 @@
 import os
 import unittest
-from unittest import mock
+import unittest.mock as mock
 
+from a2a.utils import DEFAULT_RPC_URL
 from starlette.testclient import TestClient
 
 from claude_agent_a2a.server import create_app
@@ -51,7 +52,7 @@ class ServerTests(unittest.TestCase):
 
         valid_url = valid.json()["supportedInterfaces"][0]["url"]
         invalid_url = invalid.json()["supportedInterfaces"][0]["url"]
-        self.assertTrue(valid_url.startswith("https://agent.example:443/"))
+        self.assertEqual(valid_url, "https://agent.example:443" + DEFAULT_RPC_URL)
         self.assertNotIn("evil.test", invalid_url)
         self.assertNotIn("javascript:", invalid_url)
 

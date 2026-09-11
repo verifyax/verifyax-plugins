@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
-from unittest import mock
+import unittest.mock as mock
 
 
 _TUNNEL_PATH = Path(__file__).parents[2] / "scripts" / "tunnel.py"
@@ -23,6 +23,15 @@ class TunnelTests(unittest.TestCase):
             "cloudflared-windows-amd64.exe",
         ):
             self.assertRegex(tunnel._PINNED_BINARY_SHA256[asset], r"^[0-9a-f]{64}$")
+        # Darwin GitHub assets are archives; binary and archive digests must differ.
+        for archive in (
+            "cloudflared-darwin-amd64.tgz",
+            "cloudflared-darwin-arm64.tgz",
+        ):
+            self.assertNotEqual(
+                tunnel._PINNED_BINARY_SHA256[archive],
+                tunnel._PINNED_ASSET_SHA256[archive],
+            )
 
     def test_release_url_is_immutable_by_default(self):
         with mock.patch.dict(os.environ, {}, clear=True):
