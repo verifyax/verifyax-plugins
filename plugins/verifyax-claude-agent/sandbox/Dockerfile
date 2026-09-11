@@ -6,7 +6,7 @@
 # Build (from repo root):   docker build -t claude-verifyax-sandbox -f sandbox/Dockerfile .
 # Run (see sandbox/README.md for the safe flags).
 
-FROM node:20.20.2-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
+FROM node:26.8-slim@sha256:14bf3eac4bf209d906d3c41256597d3ab1f926b2e93a79e9bdfe1efd32454239
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-pip ca-certificates git curl \
