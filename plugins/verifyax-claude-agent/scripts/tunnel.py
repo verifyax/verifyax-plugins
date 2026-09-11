@@ -30,6 +30,8 @@ import urllib.request
 
 _URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 _PINNED_VERSION = "2026.8.3"
+# SHA-256 of the *installed executable* (extracted `cloudflared` / `.exe`).
+# For Darwin the GitHub asset is a `.tgz`, so this is NOT the archive digest.
 _PINNED_BINARY_SHA256 = {
     "cloudflared-darwin-amd64.tgz": "936aa4ed783b0e191fac48e7140c34605b25d8d5c0495c3599c90e350ae6e4c4",
     "cloudflared-darwin-arm64.tgz": "50a04624531e7a98ddb65f1223905e32f84e7488ed3ee8dadcd3260aa8932603",
@@ -37,6 +39,8 @@ _PINNED_BINARY_SHA256 = {
     "cloudflared-linux-arm64": "4bcfd35521a7cbc545ebfd5d57334a71ee180e2a64874981f374c81472118391",
     "cloudflared-windows-amd64.exe": "83e726ed18ea78c5ad5213c4c3a3a27051393950d2bc8ed4de69bec12d14eaae",
 }
+# SHA-256 of the GitHub release *archive* (Darwin `.tgz` only). Linux/Windows
+# assets are already the raw binary, so they are checked via _PINNED_BINARY_SHA256.
 _PINNED_ASSET_SHA256 = {
     "cloudflared-darwin-amd64.tgz": "61e1316266a00fd70ce40da011d612badc805367fb65293dd1925f938f704c99",
     "cloudflared-darwin-arm64.tgz": "40c9144d86df8937c5b43293a1f7d2d2107029aa74725023dd46b1b27154352f",

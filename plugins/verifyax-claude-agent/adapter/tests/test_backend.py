@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 import unittest
-from unittest import mock
+import unittest.mock as mock
 
 from claude_agent_a2a.backend import ClaudeAgentError, ClaudeCodeBackend
 

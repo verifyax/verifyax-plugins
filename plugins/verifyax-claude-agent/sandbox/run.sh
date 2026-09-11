@@ -29,6 +29,8 @@ if [ "$network" != "none" ]; then
   fi
 fi
 
+# uid/gid 1000 is USER agent in sandbox/Dockerfile (the base image's `node`
+# account is deleted so these tmpfs mounts are writable by the sandbox user).
 exec docker run -it --rm \
   --network "$network" \
   -p 127.0.0.1:8091:8091 \

@@ -20,6 +20,8 @@ Versions are tracked per plugin.
 - Make the tools-on launcher deny networking by default, require an explicitly
   marked restricted network, mount the project read-only, and provide a
   dedicated ephemeral scratch volume.
+- Pin the sandbox `agent` user to UID/GID 1000 (reclaiming the base image
+  `node` account) so the launcher tmpfs mounts are writable.
 
 #### Testing
 
