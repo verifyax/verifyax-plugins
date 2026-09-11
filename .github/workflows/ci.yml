@@ -73,10 +73,17 @@ jobs:
             -s plugins/verifyax-claude-agent/adapter/tests -v
 
       - name: Verify pinned Claude Code tools-off capability
+        env:
+          DISABLE_AUTOUPDATER: "1"
         run: |
           npm install --global @anthropic-ai/claude-code@2.1.263
-          test "$(claude --version | awk '{print $1}')" = "2.1.263"
-          claude --help | grep -F 'Use "" to disable all tools'
+          export PATH="$(npm prefix -g)/bin:$PATH"
+          npm ls -g --depth=0 @anthropic-ai/claude-code@2.1.263
+          version=$(claude --version)
+          echo "claude --version: ${version}"
+          echo "$version" | grep -F '2.1.263'
+          # --help wraps this across two lines: 'Use "" to disable all' / 'tools, ...'
+          claude --help | grep -F 'Use "" to disable all'
 
       - name: Validate pinned sandbox definition
         run: docker build --check -f plugins/verifyax-claude-agent/sandbox/Dockerfile plugins/verifyax-claude-agent
